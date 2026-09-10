@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Next.js build output
+.next/
+out/
+build/
+
+# Environment — 🔴 KHÔNG BAO GIỜ commit các file này (chứa secret/API key)
+.env
+.env.local
+.env*.local
+.env.development
+.env.production
+.env.test
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# Prisma
+prisma/output/
+prisma/dev.db
+*.db
+
+# User uploads (runtime data — không commit)
+public/uploads/
+uploads/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE / VSCode
+.vscode/
+.idea/
+
+# TypeScript / ESLint
+next-env.d.ts
+*.tsbuildinfo
+
+# Temp
+.tmp/
