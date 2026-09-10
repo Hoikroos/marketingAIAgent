@@ -11,7 +11,8 @@
     "setup": "prisma generate && prisma db push",
     "db:push": "prisma db push",
     "db:generate": "prisma generate",
-    "db:cleanup": "tsx prisma/cleanup.ts"
+    "db:cleanup": "tsx prisma/cleanup.ts",
+    "db:seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.14.0",
