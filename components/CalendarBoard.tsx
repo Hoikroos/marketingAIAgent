@@ -1,8 +1,10 @@
 ﻿"use client";
 import { useMemo, useState } from "react";
+import { useSession } from "next-auth/react";
 import { Plus, ChevronLeft, ChevronRight } from "./icons";
 import { EditScheduledButton, EditExternalButton, AddScheduledButton } from "./ScheduledContentModal";
 import usePerm from "./usePerm";
+import { isAdminLike } from "@/lib/permissions";
 
 type Item = {
   id: number;
@@ -13,6 +15,7 @@ type Item = {
   external?: boolean;
   note?: string | null;
   authorName?: string | null;
+  authorId?: number | null;
 };
 
 type EventItem = {
@@ -21,6 +24,7 @@ type EventItem = {
   eventDate: string;
   note?: string | null;
   userName?: string | null;
+  userId?: number;
 };
 
 const DAY_LABELS = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
@@ -62,19 +66,22 @@ function buildMonthGrid(monthDate: Date) {
 
 const MAX_VISIBLE_PER_DAY = 3;
 
-/** Card nhỏ cho 1 mục lịch — nội dung tím, sự kiện ngoài hồng 📌 + nút Sửa riêng. */
-function DayItemCard({ it }: { it: Item }) {
+/** Card nhỏ cho 1 mục lịch — nội dung tím, sự kiện ngoài hồng 📌 + nút Sửa (CHỈ hiện
+ *  với người tạo hoặc Admin — server cũng chặn: người khác sửa/xoá sẽ bị 403). */
+function DayItemCard({ it, editable }: { it: Item; editable: boolean }) {
   const ui = TONE_UI[it.external ? "sky" : "purple"];
   return (
     <div className={`group rounded-md px-1.5 py-1 border text-left ${ui.border} ${ui.bg} transition hover:brightness-125`} title={it.external ? `${it.title}${it.note ? " — " + it.note : ""}${it.authorName ? " — tạo bởi " + it.authorName : ""}` : `${it.title}${it.authorName ? " — tạo bởi " + it.authorName : ""}`}>
       <div className="flex items-center gap-1 min-w-0">
         <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${ui.dot}`} />
         <span className="text-[10px] font-bold truncate">{it.external ? "📌 " : ""}{it.title}</span>
-        <span className="ml-auto opacity-0 group-hover:opacity-100 transition shrink-0">
-          {it.external ? <EditExternalButton item={{ id: it.id, title: it.title, eventDate: it.scheduledAt, note: it.note }} /> : <EditScheduledButton item={it} />}
-        </span>
+        {editable && (
+          <span className="ml-auto opacity-0 group-hover:opacity-100 transition shrink-0">
+            {it.external ? <EditExternalButton item={{ id: it.id, title: it.title, eventDate: it.scheduledAt, note: it.note }} /> : <EditScheduledButton item={it} />}
+          </span>
+        )}
       </div>
-      <div className="flex items-center justify-between gap-1 mt-0.5 pl-2.5">
+      <div className={`flex items-center ${editable ? "justify-between" : ""} gap-1 mt-0.5 pl-2.5`}>
         <span className="text-[8px] text-slate-500 truncate">
           {new Date(it.scheduledAt).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}
           {it.authorName ? ` · 👤 ${it.authorName}` : ""}
@@ -89,6 +96,11 @@ export default function CalendarBoard({ items, events }: { items?: Item[] | null
   // Phòng vệ: props có thể null/undefined khi hot-reload → luôn dùng mảng an toàn
   const safeItems = Array.isArray(items) ? items : [];
   const safeEvents = Array.isArray(events) ? events : [];
+  // Quyền sửa/xoá lịch: NGƯỜI TẠO hoặc ADMIN (server cũng chặn — người khác sẽ bị 403)
+  const { data: session } = useSession();
+  const meId = Number(session?.user?.id) || 0;
+  const isAdmin = isAdminLike((session?.user as any) || null);
+  const canTouch = (authorId?: number | null) => isAdmin || (Number(authorId) || -1) === meId;
   const [view, setView] = useState<"month" | "week">("month");
   const [monthOffset, setMonthOffset] = useState(0);
   const [weekOffset, setWeekOffset] = useState(0);
@@ -134,6 +146,7 @@ export default function CalendarBoard({ items, events }: { items?: Item[] | null
         external: true,
         note: ev.note,
         authorName: ev.userName,
+        authorId: ev.userId,
       } as Item);
       map.set(key, arr);
     }
@@ -263,7 +276,7 @@ export default function CalendarBoard({ items, events }: { items?: Item[] | null
 
                         <div className="space-y-1">
                           {visible.map((it) => (
-                            <DayItemCard key={it.id} it={it} />
+                            <DayItemCard key={it.id} it={it} editable={canTouch(it.authorId)} />
                           ))}
                           {overflowCount > 0 && (
                             <div className="text-[9px] text-slate-500 font-semibold px-1">
@@ -302,7 +315,7 @@ export default function CalendarBoard({ items, events }: { items?: Item[] | null
                       </div>
                       <div className="space-y-1">
                         {visible.map((it) => (
-                          <DayItemCard key={it.id} it={it} />
+                          <DayItemCard key={it.id} it={it} editable={canTouch(it.authorId)} />
                         ))}
                         {overflowCount > 0 && (
                           <div className="text-[9px] text-slate-500 font-semibold px-1">

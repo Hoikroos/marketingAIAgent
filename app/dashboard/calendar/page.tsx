@@ -17,6 +17,7 @@ export default async function Calendar() {
       type: c.type,
       scheduledAt: c.scheduledAt as unknown as string,
       authorName: (c as any).author?.name || "",
+      authorId: c.authorId,
     }));
 
   return (
