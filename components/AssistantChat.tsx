@@ -599,6 +599,16 @@ export default function AssistantChat() {
         <a href="/settings" className="flex items-center gap-1.5 px-3.5 py-2.5 border-t border-[var(--border-soft)] text-[11px] font-semibold text-slate-400 hover:text-[#1b98e0] transition">
           <Settings size={13} /> Cài đặt
         </a>
+        {canEditAss && (
+          <button
+            onClick={() => setSetOpen(true)}
+            className="w-full flex items-center gap-1.5 px-3.5 py-2.5 text-[11px] font-semibold text-slate-400 hover:text-[#1b98e0] transition"
+            title="Cấu hình AI dành riêng cho Trợ lý (model, độ sáng tạo...)"
+            type="button"
+          >
+            <Sparkles size={13} /> Cài đặt AI
+          </button>
+        )}
       </div>
     </div>
   );
@@ -640,17 +650,6 @@ export default function AssistantChat() {
             >
               <Search size={15} />
             </button>
-
-            {canEditAss && (
-              <button
-                onClick={() => setSetOpen(true)}
-                className="p-2 rounded-lg text-slate-400 hover:bg-[var(--panel2)] hover:text-white transition"
-                title="Cài đặt Trợ lý AI"
-                type="button"
-              >
-                <Settings size={15} />
-              </button>
-            )}
 
             {sessionId && viewing?.mine && (
               <button
