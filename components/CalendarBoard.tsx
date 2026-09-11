@@ -12,6 +12,7 @@ type Item = {
   scheduledAt: string;
   external?: boolean;
   note?: string | null;
+  authorName?: string | null;
 };
 
 type EventItem = {
@@ -19,6 +20,7 @@ type EventItem = {
   title: string;
   eventDate: string;
   note?: string | null;
+  userName?: string | null;
 };
 
 const DAY_LABELS = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
@@ -64,7 +66,7 @@ const MAX_VISIBLE_PER_DAY = 3;
 function DayItemCard({ it }: { it: Item }) {
   const ui = TONE_UI[it.external ? "sky" : "purple"];
   return (
-    <div className={`group rounded-md px-1.5 py-1 border text-left ${ui.border} ${ui.bg} transition hover:brightness-125`} title={it.external ? `${it.title}${it.note ? " — " + it.note : ""}` : it.title}>
+    <div className={`group rounded-md px-1.5 py-1 border text-left ${ui.border} ${ui.bg} transition hover:brightness-125`} title={it.external ? `${it.title}${it.note ? " — " + it.note : ""}${it.authorName ? " — tạo bởi " + it.authorName : ""}` : `${it.title}${it.authorName ? " — tạo bởi " + it.authorName : ""}`}>
       <div className="flex items-center gap-1 min-w-0">
         <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${ui.dot}`} />
         <span className="text-[10px] font-bold truncate">{it.external ? "📌 " : ""}{it.title}</span>
@@ -72,11 +74,12 @@ function DayItemCard({ it }: { it: Item }) {
           {it.external ? <EditExternalButton item={{ id: it.id, title: it.title, eventDate: it.scheduledAt, note: it.note }} /> : <EditScheduledButton item={it} />}
         </span>
       </div>
-      <div className="flex items-center justify-between mt-0.5 pl-2.5">
-        <span className="text-[8px] text-slate-500">
+      <div className="flex items-center justify-between gap-1 mt-0.5 pl-2.5">
+        <span className="text-[8px] text-slate-500 truncate">
           {new Date(it.scheduledAt).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}
+          {it.authorName ? ` · 👤 ${it.authorName}` : ""}
         </span>
-        <span className={`text-[8px] font-bold ${ui.text}`}>{it.external ? "Sự kiện" : it.platform}</span>
+        <span className={`text-[8px] font-bold ${ui.text} shrink-0`}>{it.external ? "Sự kiện" : it.platform}</span>
       </div>
     </div>
   );
@@ -130,6 +133,7 @@ export default function CalendarBoard({ items, events }: { items?: Item[] | null
         scheduledAt: ev.eventDate,
         external: true,
         note: ev.note,
+        authorName: ev.userName,
       } as Item);
       map.set(key, arr);
     }
