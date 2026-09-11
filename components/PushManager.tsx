@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useToast } from "./toast";
 
 /**
  * PushManager — đăng ký Web Push Notification cho thiết bị hiện tại.
  * - Đăng ký Service Worker (/sw.js)
- * - Hỏi quyền thông báo bằng banner nhỏ (không popup ngay khi vào trang)
- * - Lưu subscription vào server (/api/push)
+ * - Hỏi quyền thông báo bằng banner nhỏ; "Để sau" = không hỏi lại trong 7 ngày
+ * - Đã cấp quyền từ trước → tự đăng ký im lặng (không hiện banner, không làm phiền)
+ * - Bật thành công/thất bại → toast phản hồi rõ ràng (cả desktop lẫn mobile)
  * Trên iOS: phải "Thêm vào màn hình chính" rồi mở từ icon mới nhận push được (iOS 16.4+).
  */
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
@@ -18,70 +20,81 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return arr;
 }
 
+const ASK_AGAIN_AFTER_MS = 7 * 24 * 60 * 60 * 1000; // "Để sau" = hỏi lại sau 7 ngày
+const LS_KEY = "push-asked-at";
+
 export default function PushManager() {
+  const toast = useToast();
   const [showBanner, setShowBanner] = useState(false);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    // Không hỏi lại nếu đã từ chối trong phiên này
-    if (sessionStorage.getItem("push-dismissed")) return;
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
     if (typeof Notification === "undefined") return;
-    // Đã cấp quyền rồi → đăng ký luôn, không cần banner
+
     if (Notification.permission === "granted") {
-      registerPush().catch(() => {});
+      // Đã cấp quyền từ trước → đăng ký im lặng, không hiện banner
+      registerPush(true).catch(() => {});
       return;
     }
-    if (Notification.permission === "denied") return;
-    // Chưa quyết định → hiện banner sau 3 giây (tránh chặn khi vừa mở app)
+    if (Notification.permission === "denied") return; // bị chặn trong trình duyệt → không hỏi nữa
+
+    // Chưa quyết định → hỏi, nhưng tôn trọng "Để sau" (lưu localStorage, hỏi lại sau 7 ngày)
+    const askedAt = Number(localStorage.getItem(LS_KEY) || 0);
+    if (askedAt && Date.now() - askedAt < ASK_AGAIN_AFTER_MS) return;
     const t = setTimeout(() => setShowBanner(true), 3000);
     return () => clearTimeout(t);
   }, []);
 
-  async function registerPush() {
+  async function registerPush(silent = false) {
     // 1) Đăng ký Service Worker
     const reg = await navigator.serviceWorker.register("/sw.js");
     await navigator.serviceWorker.ready;
 
-    // 2) Xin quyền thông báo
-    const perm = await Notification.requestPermission();
-    if (perm !== "granted") throw new Error("Đã từ chối quyền thông báo");
+    // 2) Xin quyền thông báo (bỏ qua khi gọi im lặng — quyền đã granted)
+    if (!silent) {
+      const perm = await Notification.requestPermission();
+      if (perm !== "granted") throw new Error("Bạn đã từ chối quyền thông báo trong trình duyệt");
+    }
 
     // 3) Lấy VAPID public key + đăng ký subscription
-    const { publicKey } = await fetch("/api/push").then((r) => r.json());
-    if (!publicKey) throw new Error("Server chưa cấu hình VAPID key");
+    const res = await fetch("/api/push").then((r) => r.json());
+    if (!res.ok || !res.publicKey) throw new Error("Server chưa cấu hình VAPID key (thiếu VAPID_PUBLIC_KEY)");
 
     const existing = await reg.pushManager.getSubscription();
     const sub =
       existing ||
       (await reg.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(publicKey) as any,
+        applicationServerKey: urlBase64ToUint8Array(res.publicKey) as any,
       }));
 
     // 4) Gửi subscription lên server
-    const raw = sub.toJSON();
     await fetch("/api/push", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(raw),
+      body: JSON.stringify(sub.toJSON()),
     });
   }
 
   async function onEnable() {
     setBusy(true);
     try {
-      await registerPush();
+      await registerPush(false);
+      localStorage.setItem(LS_KEY, String(Date.now()));
       setShowBanner(false);
-    } catch {
-      // Từ chối quyền → không hỏi lại trong phiên
+      toast.success("Đã bật thông báo", "Bạn sẽ nhận thông báo trên thiết bị này khi có tin mới.");
+    } catch (e: any) {
+      localStorage.setItem(LS_KEY, String(Date.now()));
+      setShowBanner(false);
+      toast.error("Chưa bật được thông báo", e?.message || String(e));
     } finally {
       setBusy(false);
     }
   }
 
   function onDismiss() {
-    sessionStorage.setItem("push-dismissed", "1");
+    localStorage.setItem(LS_KEY, String(Date.now()));
     setShowBanner(false);
   }
 
@@ -109,6 +122,7 @@ export default function PushManager() {
               onClick={onDismiss}
               className="px-3 py-1.5 rounded-lg text-[11px] font-semibold text-slate-400 hover:text-white transition"
               type="button"
+              title="Không hỏi lại trong 7 ngày"
             >
               Để sau
             </button>
