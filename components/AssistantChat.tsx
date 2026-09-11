@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useToast } from "./toast";
-import { Spinner, Field } from "./ui";
+import { Spinner } from "./ui";
 import Modal from "./Modal";
 import {
   Bot,
@@ -26,7 +26,6 @@ import {
   PenLine,
   TrendingUp,
   Lightbulb,
-  Settings,
   Building2,
 } from "./icons";
 import { useBrand } from "./BrandProvider";
@@ -322,7 +321,7 @@ export default function AssistantChat() {
 
   async function deleteAll() {
     const cf = await Swal.fire({
-      title: "Xoá TOÀN BỘ lịch sử chat?",
+      title: "Xoá Toàn bộ lịch sử chat?",
       text: `Toàn bộ ${conversations.length} đoạn chat của bạn sẽ bị xoá vĩnh viễn. Hành động này KHÔNG THỂ hoàn tác!`,
       icon: "warning",
       showCancelButton: true,
@@ -605,14 +604,11 @@ export default function AssistantChat() {
             Đồng hành cùng bạn trên hành trình an cư – đầu tư.
           </p>
         </div>
-        <a href="/settings" className="flex items-center gap-1.5 px-3.5 py-2.5 border-t border-[var(--border-soft)] text-[11px] font-semibold text-slate-400 hover:text-[#1b98e0] transition">
-          <Settings size={13} /> Cài đặt
-        </a>
         {canEditAss && (
           <button
             onClick={() => setSetOpen(true)}
-            className="w-full flex items-center gap-1.5 px-3.5 py-2.5 text-[11px] font-semibold text-slate-400 hover:text-[#1b98e0] transition"
-            title="Cấu hình AI dành riêng cho Trợ lý (model, độ sáng tạo...)"
+            className="w-full flex items-center gap-1.5 px-3.5 py-2.5 border-t border-[var(--border-soft)] text-[11px] font-semibold text-slate-400 hover:text-[#1b98e0] transition"
+            title="Cấu hình AI dành riêng cho Trợ lý (model, key, độ sáng tạo...)"
             type="button"
           >
             <Sparkles size={13} /> Cài đặt AI
@@ -920,24 +916,26 @@ export default function AssistantChat() {
       {/* Modal cài đặt Trợ lý AI — chỉ Admin */}
       <Modal open={setOpen} onClose={() => setSetOpen(false)} title="Cài đặt Trợ lý AI">
         <div className="space-y-4">
-          <Field label="Model AI dành riêng cho Trợ lý">
+          <div>
+            <p className="field-label">Model AI dành riêng cho Trợ lý</p>
             <input
               className="input w-full"
               value={assCfg.model}
               onChange={(e) => setAssCfg((c) => ({ ...c, model: e.target.value }))}
-              placeholder="Để trống = dùng model hệ thống (Cài đặt → AI)"
+              placeholder=""
             />
             <p className="text-[10px] text-slate-400 mt-1">Ví dụ: openai/gpt-oss-120b, llama-3.3-70b-versatile, nvidia/nemotron-3.5-lightning:free</p>
-          </Field>
+          </div>
 
-          <Field label="API Key riêng cho Trợ lý">
+          <div>
+            <p className="field-label">API Key riêng cho Trợ lý</p>
             <div className="flex gap-2">
               <input
                 type="password"
                 className="input w-full"
                 value={assKeyInput}
                 onChange={(e) => setAssKeyInput(e.target.value)}
-                placeholder={assCfg.hasKey ? `Đã có key riêng (${assCfg.keyMasked}) — để trống giữ nguyên` : "Để trống = dùng key hệ thống"}
+                placeholder={assCfg.hasKey ? `Đã có key riêng (${assCfg.keyMasked}) — để trống giữ nguyên` : ""}
                 autoComplete="new-password"
               />
               {assCfg.hasKey && (
@@ -956,18 +954,20 @@ export default function AssistantChat() {
                 ? "Sẽ XOÁ key riêng khi bấm Lưu — Trợ lý dùng lại key hệ thống."
                 : "Cho phép Trợ lý dùng nhà cung cấp khác hệ thống (VD: hệ thống dùng Groq, Trợ lý dùng OpenRouter với key riêng)."}
             </p>
-          </Field>
+          </div>
 
-          <Field label="Endpoint API riêng (tuỳ chọn)">
+          <div>
+            <p className="field-label">Endpoint API riêng (tuỳ chọn)</p>
             <input
               className="input w-full"
               value={assCfg.endpoint}
               onChange={(e) => setAssCfg((c) => ({ ...c, endpoint: e.target.value }))}
-              placeholder="Để trống = dùng endpoint hệ thống. VD: https://openrouter.ai/api/v1"
+              placeholder=""
             />
-          </Field>
+          </div>
 
-          <Field label={`Mức sáng tạo (temperature): ${assCfg.temperature.toFixed(1)}`}>
+          <div>
+            <p className="field-label">Mức sáng tạo (temperature): {assCfg.temperature.toFixed(1)}</p>
             <input
               type="range"
               min={0}
@@ -981,9 +981,10 @@ export default function AssistantChat() {
               <span>0.0 — Chính xác, bám số liệu</span>
               <span>1.0 — Sáng tạo, tự nhiên</span>
             </div>
-          </Field>
+          </div>
 
-          <Field label="Độ dài câu trả lời tối đa (tokens)">
+          <div>
+            <p className="field-label">Độ dài câu trả lời tối đa (tokens)</p>
             <input
               type="number"
               min={200}
@@ -993,7 +994,7 @@ export default function AssistantChat() {
               value={assCfg.maxTokens}
               onChange={(e) => setAssCfg((c) => ({ ...c, maxTokens: Number(e.target.value) || 2000 }))}
             />
-          </Field>
+          </div>
 
           <label className="flex items-center gap-2.5 cursor-pointer select-none">
             <input
