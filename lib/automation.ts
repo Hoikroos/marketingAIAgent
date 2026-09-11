@@ -67,14 +67,16 @@ export async function runAllJobs(): Promise<AutomationResults> {
         where: { scheduledAt: { gte: startToday, lt: endToday } },
       });
       for (const c of todays) {
+        // CHỈ gửi cho TÁC GIẢ của nội dung — content của ai thì thông báo người đó
+        if (!c.authorId) continue;
         if (await notifiedToday("reminder_morning", c.id)) continue;
         const when = c.scheduledAt ? new Date(c.scheduledAt).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }) : "";
         await prisma.notification.create({
           data: {
-            userId: c.authorId ?? broadcastId,
+            userId: c.authorId,
             type: "reminder_morning",
-            title: "☀️ Nhắc đăng bài hôm nay",
-            content: `"${c.title}" có lịch đăng lúc ${when} hôm nay — chuẩn bị nội dung và đăng đúng giờ nhé!`,
+            title: `☀️ "${c.title}" — đăng hôm nay`,
+            content: `Có lịch đăng lúc ${when} hôm nay trên ${c.platform} — chuẩn bị nội dung và đăng đúng giờ nhé!`,
             refId: c.id,
             link: "/dashboard/calendar",
           },
@@ -89,15 +91,17 @@ export async function runAllJobs(): Promise<AutomationResults> {
       where: { scheduledAt: { gte: now, lte: inThirtyMin } },
     });
     for (const c of due30) {
+      // CHỈ gửi cho TÁC GIẢ của nội dung — content của ai thì thông báo người đó
+      if (!c.authorId) continue;
       // chống trùng: mỗi content chỉ nhắc 1 lần trong 60 phút (đủ phủ cửa sổ 30 phút)
       if (await notifiedSince("reminder_30m", c.id, 60)) continue;
       const when = c.scheduledAt ? new Date(c.scheduledAt).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }) : "";
       await prisma.notification.create({
         data: {
-          userId: c.authorId ?? broadcastId,
+          userId: c.authorId,
           type: "reminder_30m",
-          title: "⏳ 30 phút nữa đến giờ đăng!",
-          content: `"${c.title}" sẽ đăng lúc ${when} — chỉ còn 30 phút nữa, chuẩn bị đăng ngay!`,
+          title: `⏳ "${c.title}" — còn 30 phút nữa!`,
+          content: `Sẽ đăng lúc ${when} trên ${c.platform} — chuẩn bị đăng ngay!`,
           refId: c.id,
           link: "/dashboard/calendar",
         },
