@@ -6,7 +6,7 @@ import { getBotLogoUrl, setBotLogoUrl } from "@/lib/brandLogo";
 
 const ALLOWED = ["png", "jpg", "jpeg", "gif", "webp", "svg"];
 const MAX_BYTES = 5 * 1024 * 1024; // 5MB
-const LOGO_DIR = path.join(process.cwd(), "public", "uploads", "images");
+const LOGO_DIR = path.join(process.cwd(), "uploads", "images");
 
 /** POST — Admin tải LOGO CHATBOT lên (hiển thị trong khung Trợ lý AI). */
 export async function POST(req: NextRequest) {
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
     await mkdir(LOGO_DIR, { recursive: true });
     const safe = `botlogo_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
     await writeFile(path.join(LOGO_DIR, safe), Buffer.from(await f.arrayBuffer()));
-    const url = `/uploads/images/${safe}`;
+    const url = `/api/files/images/${safe}`;
     await setBotLogoUrl(url);
 
     return NextResponse.json({ ok: true, url });

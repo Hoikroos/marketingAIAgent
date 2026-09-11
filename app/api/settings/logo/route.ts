@@ -6,7 +6,7 @@ import { getLogoUrl, setLogoUrl } from "@/lib/brandLogo";
 
 const ALLOWED = ["png", "jpg", "jpeg", "gif", "webp", "svg"];
 const MAX_BYTES = 5 * 1024 * 1024; // 5MB
-const LOGO_DIR = path.join(process.cwd(), "public", "uploads", "images");
+const LOGO_DIR = path.join(process.cwd(), "uploads", "images");
 const DEFAULT_LOGO = "logoTPL.png";
 
 /** POST — Admin tải logo lên, lưu vào public/uploads/images và cập nhật cấu hình. */
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
     await mkdir(LOGO_DIR, { recursive: true });
     const safe = `logo_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
     await writeFile(path.join(LOGO_DIR, safe), Buffer.from(await f.arrayBuffer()));
-    const url = `/uploads/images/${safe}`;
+    const url = `/api/files/images/${safe}`;
     await setLogoUrl(url);
 
     return NextResponse.json({ ok: true, url });

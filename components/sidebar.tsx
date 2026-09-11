@@ -44,7 +44,7 @@ const navItems: (NavItem & { group: string })[] = [
 const GROUP_ORDER = ["Tổng quan", "Nội dung & AI", "Kinh doanh", "Vận hành", "Quản trị"];
 
 // Path mặc định, dùng khi useBrand() không trả về logoUrl.
-const DEFAULT_LOGO_PATH = "/uploads/images/logoTPL.png";
+const DEFAULT_LOGO_PATH = "/api/files/images/logoTPL.png";
 
 /**
  * Logo công ty. Ưu tiên logoUrl lấy từ BrandProvider (DB/config),

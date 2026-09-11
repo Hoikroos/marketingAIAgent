@@ -18,10 +18,10 @@ export async function POST(req: NextRequest) {
   if (!ALLOWED.includes(ext)) return NextResponse.json({ ok: false, error: "Chỉ chấp nhận PNG/JPG/GIF/WEBP" }, { status: 400 });
   if (f.size > MAX_BYTES) return NextResponse.json({ ok: false, error: "Ảnh tối đa 10MB" }, { status: 400 });
 
-  const dir = path.join(process.cwd(), "public", "uploads", "chat");
+  const dir = path.join(process.cwd(), "uploads", "chat");
   await mkdir(dir, { recursive: true });
   const safe = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
   await writeFile(path.join(dir, safe), Buffer.from(await f.arrayBuffer()));
 
-  return NextResponse.json({ ok: true, url: `/uploads/chat/${safe}` });
+  return NextResponse.json({ ok: true, url: `/api/files/chat/${safe}` });
 }

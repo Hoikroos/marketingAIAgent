@@ -6,7 +6,7 @@ import { getCurrentUser } from "@/lib/auth";
 
 const ALLOWED = ["png", "jpg", "jpeg", "gif", "webp"];
 const MAX_BYTES = 5 * 1024 * 1024;
-const AVATAR_DIR = path.join(process.cwd(), "public", "uploads", "avatars");
+const AVATAR_DIR = path.join(process.cwd(), "uploads", "avatars");
 
 /** POST — tải ảnh đại diện lên */
 export async function POST(req: NextRequest) {
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
   await mkdir(AVATAR_DIR, { recursive: true });
   const safe = `avatar_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
   await writeFile(path.join(AVATAR_DIR, safe), Buffer.from(await f.arrayBuffer()));
-  const url = `/uploads/avatars/${safe}`;
+  const url = `/api/files/avatars/${safe}`;
 
   await prisma.user.update({ where: { id: me }, data: { avatar: url } });
   return NextResponse.json({ ok: true, url });

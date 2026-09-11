@@ -13,7 +13,7 @@ const inter = Inter({
   display: "swap",
 });
 
-const DEFAULT_LOGO = "/uploads/images/logoTPL.png";
+const DEFAULT_LOGO = "/api/files/images/logoTPL.png";
 
 /** Metadata động: favicon/icon theo logo tùy chỉnh (nếu có) trong Cài đặt hệ thống. */
 export async function generateMetadata(): Promise<Metadata> {

@@ -7,7 +7,7 @@ const IMAGE_EXT = ["png", "jpg", "jpeg", "gif", "webp"];
 const DOC_EXT = ["pdf", "txt", "csv", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "zip"];
 const ALLOWED = [...IMAGE_EXT, ...DOC_EXT];
 const MAX_BYTES = 10 * 1024 * 1024; // 10MB
-const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads", "chat");
+const UPLOAD_DIR = path.join(process.cwd(), "uploads", "chat");
 
 /**
  * POST /api/assistant/upload — đính kèm file/hình ảnh vào chat Trợ lý AI.
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       ok: true,
-      url: `/uploads/chat/${safe}`,
+      url: `/api/files/chat/${safe}`,
       name: f.name.slice(0, 120),
       type: IMAGE_EXT.includes(ext) ? "image" : "file",
       size: f.size,
