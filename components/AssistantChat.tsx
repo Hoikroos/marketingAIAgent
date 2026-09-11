@@ -531,9 +531,9 @@ export default function AssistantChat() {
             {filteredConversations.map((cv) => (
               <div key={cv.id} className={`group flex items-center gap-1 rounded-xl transition ${sessionId === cv.id ? "bg-[#1b98e0]/15" : "hover:bg-[var(--panel2)]"}`}>
                 <button onClick={() => { openConversation(cv.id); onPick?.(); }} className="flex-1 min-w-0 text-left px-2.5 py-2.5" type="button">
-                  <div className="flex items-center gap-1.5">
-                    <MessageCircle size={12} className={`shrink-0 ${sessionId === cv.id ? "text-[#1b98e0]" : "text-slate-500"}`} />
-                    <span className={`truncate text-xs font-medium ${sessionId === cv.id ? "text-[#1b98e0]" : ""}`} title={cv.title}>{cv.title}</span>
+                  <div className="flex items-start gap-1.5">
+                    <MessageCircle size={12} className={`shrink-0 mt-0.5 ${sessionId === cv.id ? "text-[#1b98e0]" : "text-slate-500"}`} />
+                    <span className={`min-w-0 flex-1 line-clamp-2 text-xs font-medium ${sessionId === cv.id ? "text-[#1b98e0]" : ""}`} title={cv.title}>{cv.title}</span>
                   </div>
                   <div className="text-[10px] text-slate-500 flex items-center gap-1.5 mt-0.5 pl-[18px]">
                     <span>{fmtRel(cv.updatedAt)}</span>
@@ -570,7 +570,7 @@ export default function AssistantChat() {
             {sharedConvs.map((cv) => (
               <div key={cv.id} className={`flex items-center gap-1 rounded-xl transition ${sessionId === cv.id ? "bg-[#1b98e0]/15" : "hover:bg-[var(--panel2)]"}`}>
                 <button onClick={() => { openConversation(cv.id); onPick?.(); }} className="flex-1 min-w-0 text-left px-2.5 py-2.5" type="button">
-                  <div className={`text-xs font-medium truncate ${sessionId === cv.id ? "text-[#1b98e0]" : ""}`}>{cv.title}</div>
+                  <div className={`text-xs font-medium line-clamp-2 ${sessionId === cv.id ? "text-[#1b98e0]" : ""}`}>{cv.title}</div>
                   <div className="text-[10px] text-slate-500 mt-0.5">👤 {cv.userName || "Người dùng"} · {fmtRel(cv.updatedAt)}</div>
                 </button>
               </div>
@@ -917,7 +917,7 @@ export default function AssistantChat() {
       <Modal open={setOpen} onClose={() => setSetOpen(false)} title="Cài đặt Trợ lý AI">
         <div className="space-y-4">
           <div>
-            <p className="field-label">Model AI dành riêng cho Trợ lý</p>
+            <h4 className="field-label">Model AI dành riêng cho Trợ lý</h4>
             <input
               className="input w-full"
               value={assCfg.model}
@@ -928,7 +928,7 @@ export default function AssistantChat() {
           </div>
 
           <div>
-            <p className="field-label">API Key riêng cho Trợ lý</p>
+            <h4 className="field-label">API Key riêng cho Trợ lý</h4>
             <div className="flex gap-2">
               <input
                 type="password"
@@ -949,15 +949,15 @@ export default function AssistantChat() {
                 </button>
               )}
             </div>
-            <p className="text-[10px] text-slate-400 mt-1">
+            <h4 className="text-[10px] text-slate-400 mt-1">
               {assKeyInput === "-"
                 ? "Sẽ XOÁ key riêng khi bấm Lưu — Trợ lý dùng lại key hệ thống."
                 : "Cho phép Trợ lý dùng nhà cung cấp khác hệ thống (VD: hệ thống dùng Groq, Trợ lý dùng OpenRouter với key riêng)."}
-            </p>
+            </h4>
           </div>
 
           <div>
-            <p className="field-label">Endpoint API riêng (tuỳ chọn)</p>
+            <h4 className="field-label">Endpoint API riêng (tuỳ chọn)</h4>
             <input
               className="input w-full"
               value={assCfg.endpoint}
@@ -967,7 +967,7 @@ export default function AssistantChat() {
           </div>
 
           <div>
-            <p className="field-label">Mức sáng tạo (temperature): {assCfg.temperature.toFixed(1)}</p>
+            <h4 className="field-label">Mức sáng tạo (temperature): {assCfg.temperature.toFixed(1)}</h4>
             <input
               type="range"
               min={0}
@@ -984,7 +984,7 @@ export default function AssistantChat() {
           </div>
 
           <div>
-            <p className="field-label">Độ dài câu trả lời tối đa (tokens)</p>
+            <h4 className="field-label">Độ dài câu trả lời tối đa (tokens)</h4>
             <input
               type="number"
               min={200}
