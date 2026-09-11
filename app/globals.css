@@ -387,3 +387,17 @@ html.light .card .text-white { color: var(--text) !important; }
     transition: background-color .25s ease, border-color .25s ease, color .2s ease;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   FIX MOBILE: iOS Safari tu dong zoom khi focus vao o nhap co font-size < 16px.
+   Tren man hinh nho (mobile), nang moi o nhap/textarea/select len 16px de khong
+   bi phong to trang khi cham vao o nhap. desktop (>640px) giu nguyen thiet ke.
+   --------------------------------------------------------------------------- */
+@media (max-width: 640px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  textarea,
+  select {
+    font-size: 16px !important;
+    line-height: 1.4 !important;
+  }
+}
