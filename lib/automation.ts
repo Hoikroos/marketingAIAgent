@@ -2,8 +2,7 @@ import { prisma } from "@/lib/prisma";
 
 /**
  * TỰ ĐỘNG HOÁ — 3 tác vụ chạy định kỳ (bấm "Chạy ngay" trong Settings hoặc cron ngoài):
- * 1. Nhắc đăng bài — 3 mốc: (a) 7h sáng các bài đăng trong ngày, (b) 1 tiếng trước giờ đăng,
- *    (c) 30 phút trước giờ đăng
+ * 1. Nhắc đăng bài — 2 mốc: (a) 7h sáng các bài đăng trong ngày, (b) 30 phút trước giờ đăng
  *    → thông báo cho tác giả (mỗi mốc có chống trùng riêng) + đẩy Web Push ra thiết bị
  * 2. Follow-up lead cũ: lead chưa được liên hệ sau X ngày (Settings) → thông báo cho người phụ trách
  * 3. Báo cáo tuần: tổng hợp 7 ngày (leads, nội dung, chi tiêu ads) → thông báo chung
@@ -60,7 +59,6 @@ export async function runAllJobs(): Promise<AutomationResults> {
     const startToday = new Date(now);
     startToday.setHours(0, 0, 0, 0);
     const endToday = new Date(startToday.getTime() + 24 * 3600 * 1000);
-    const inOneHour = new Date(now.getTime() + 60 * 60 * 1000);
 
     // (a) NHÁC 7H SÁNG — content có lịch đăng HÔM NAY chưa đăng (gửi trong khung 7h-11h sáng)
     const hour = now.getHours();
@@ -85,28 +83,7 @@ export async function runAllJobs(): Promise<AutomationResults> {
       }
     }
 
-    // (b) NHÁC 1 TIẾNG TRƯỚC GIỜ ĐĂNG — content sẽ đăng trong vòng 60 phút tới, chưa đăng
-    const due = await prisma.content.findMany({
-      where: { scheduledAt: { gte: now, lte: inOneHour } },
-    });
-    for (const c of due) {
-      // chống trùng: mỗi content chỉ nhắc 1 lần/giờ
-      if (await notifiedSince("reminder_1h", c.id, 60)) continue;
-      const when = c.scheduledAt ? new Date(c.scheduledAt).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }) : "";
-      await prisma.notification.create({
-        data: {
-          userId: c.authorId ?? broadcastId,
-          type: "reminder_1h",
-          title: "⏰ 1 tiếng nữa đến giờ đăng!",
-          content: `"${c.title}" sẽ đăng lúc ${when} — còn 1 tiếng nữa, kiểm tra và đăng ngay!`,
-          refId: c.id,
-          link: "/dashboard/calendar",
-        },
-      });
-      res.reminders++;
-    }
-
-    // (c) NHÁC 30 PHÚT TRƯỚC GIỜ ĐĂNG — chỉ còn ≤30 phút
+    // (c) NHÁC 30 PHÚT TRƯỚC GIỜ ĐĂNG — chỉ còn ≤30 phút (mốc nhắc duy nhất trước giờ đăng)
     const inThirtyMin = new Date(now.getTime() + 30 * 60 * 1000);
     const due30 = await prisma.content.findMany({
       where: { scheduledAt: { gte: now, lte: inThirtyMin } },
