@@ -188,7 +188,8 @@ export default function AssistantChat() {
   const [canEditAss, setCanEditAss] = useState(false);
   const [setOpen, setSetOpen] = useState(false);
   const [savingSet, setSavingSet] = useState(false);
-  const [assCfg, setAssCfg] = useState({ model: "", temperature: 0.5, maxTokens: 2000, useData: true });
+  const [assCfg, setAssCfg] = useState({ model: "", temperature: 0.5, maxTokens: 2000, useData: true, endpoint: "", keyMasked: "", hasKey: false });
+  const [assKeyInput, setAssKeyInput] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -212,11 +213,19 @@ export default function AssistantChat() {
       const res = await fetch("/api/assistant/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(assCfg),
+        body: JSON.stringify({
+          model: assCfg.model,
+          temperature: assCfg.temperature,
+          maxTokens: assCfg.maxTokens,
+          useData: assCfg.useData,
+          endpoint: assCfg.endpoint,
+          key: assKeyInput,
+        }),
       });
       const d = await res.json();
       if (!res.ok || !d.ok) throw new Error(d.error || "Lỗi lưu cài đặt");
       setAssCfg(d.settings);
+      setAssKeyInput("");
       setSetOpen(false);
       toast.success("Đã lưu cài đặt Trợ lý AI", "Áp dụng cho các câu trả lời tiếp theo.");
     } catch (e: any) {
@@ -919,6 +928,43 @@ export default function AssistantChat() {
               placeholder="Để trống = dùng model hệ thống (Cài đặt → AI)"
             />
             <p className="text-[10px] text-slate-400 mt-1">Ví dụ: openai/gpt-oss-120b, llama-3.3-70b-versatile, nvidia/nemotron-3.5-lightning:free</p>
+          </Field>
+
+          <Field label="API Key riêng cho Trợ lý">
+            <div className="flex gap-2">
+              <input
+                type="password"
+                className="input w-full"
+                value={assKeyInput}
+                onChange={(e) => setAssKeyInput(e.target.value)}
+                placeholder={assCfg.hasKey ? `Đã có key riêng (${assCfg.keyMasked}) — để trống giữ nguyên` : "Để trống = dùng key hệ thống"}
+                autoComplete="new-password"
+              />
+              {assCfg.hasKey && (
+                <button
+                  onClick={() => setAssKeyInput("-")}
+                  className="px-2.5 rounded-lg border border-[var(--border)] text-[10px] font-semibold text-rose-400 hover:border-rose-400/50 hover:bg-rose-500/10 transition shrink-0"
+                  title="Xoá key riêng — Trợ lý dùng lại key hệ thống"
+                  type="button"
+                >
+                  Bỏ
+                </button>
+              )}
+            </div>
+            <p className="text-[10px] text-slate-400 mt-1">
+              {assKeyInput === "-"
+                ? "Sẽ XOÁ key riêng khi bấm Lưu — Trợ lý dùng lại key hệ thống."
+                : "Cho phép Trợ lý dùng nhà cung cấp khác hệ thống (VD: hệ thống dùng Groq, Trợ lý dùng OpenRouter với key riêng)."}
+            </p>
+          </Field>
+
+          <Field label="Endpoint API riêng (tuỳ chọn)">
+            <input
+              className="input w-full"
+              value={assCfg.endpoint}
+              onChange={(e) => setAssCfg((c) => ({ ...c, endpoint: e.target.value }))}
+              placeholder="Để trống = dùng endpoint hệ thống. VD: https://openrouter.ai/api/v1"
+            />
           </Field>
 
           <Field label={`Mức sáng tạo (temperature): ${assCfg.temperature.toFixed(1)}`}>

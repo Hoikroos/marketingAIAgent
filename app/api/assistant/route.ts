@@ -66,26 +66,32 @@ export async function POST(req: NextRequest) {
     : "";
   const effectiveQuestion = question || "(chỉ gửi file đính kèm)";
 
-  const cfg = await getAICfg();
-  if (!cfg.key) {
-    return NextResponse.json({
-      ok: false,
-      error: "Chưa cấu hình AI — vào Cài đặt → AI & Tự động hóa để nhập API Key (Groq miễn phí hoặc Cline).",
-    }, { status: 400 });
-  }
-
-  // Cài đặt riêng của Trợ lý (Admin chỉnh qua nút Cài đặt trong khung chat)
-  let assModel = "", assTemp = 0.5, assMax = 2000, assUseData = true;
+  // Cài đặt riêng của Trợ lý (Admin chỉnh qua nút Cài đặt AI trong khung chat)
+  let assModel = "", assTemp = 0.5, assMax = 2000, assUseData = true, assKey = "", assEndpoint = "";
   try {
     const rows = await prisma.setting.findMany({
-      where: { key: { in: ["assistantModel", "assistantTemperature", "assistantMaxTokens", "assistantUseData"] } },
+      where: { key: { in: ["assistantModel", "assistantTemperature", "assistantMaxTokens", "assistantUseData", "assistantKey", "assistantEndpoint"] } },
     });
     const g = (k: string) => rows.find((r) => r.key === k)?.value || "";
     assModel = g("assistantModel");
     assTemp = Math.min(1, Math.max(0, Number(g("assistantTemperature")) || 0.5));
     assMax = Math.min(8000, Math.max(200, Number(g("assistantMaxTokens")) || 2000));
     assUseData = g("assistantUseData") !== "false";
+    assKey = g("assistantKey");
+    assEndpoint = g("assistantEndpoint");
   } catch {}
+
+  const cfg = await getAICfg();
+  // Trợ lý được dùng key + endpoint RIÊNG (nếu Admin đã cấu hình) — cho phép
+  // Trợ lý chạy trên provider khác với các tính năng còn lại của hệ thống.
+  if (assKey) cfg.key = assKey;
+  if (assEndpoint) cfg.baseUrl = assEndpoint.replace(/\/$/, "");
+  if (!cfg.key) {
+    return NextResponse.json({
+      ok: false,
+      error: "Chưa cấu hình AI — vào Cài đặt → AI & Tự động hóa để nhập API Key (Groq miễn phí hoặc Cline).",
+    }, { status: 400 });
+  }
 
   let context = "";
   if (assUseData) {
