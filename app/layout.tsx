@@ -4,6 +4,7 @@ import Script from "next/script";
 import { Inter } from "next/font/google";
 import Providers from "@/components/Providers";
 import RouteLoader from "@/components/RouteLoader";
+import PushManager from "@/components/PushManager";
 import { getLogoUrl } from "@/lib/brandLogo";
 import { getTrackingIds } from "@/lib/tracking";
 
@@ -50,6 +51,7 @@ export default async function RootLayout({
       <body>
         <RouteLoader />
         <Providers>{children}</Providers>
+        <PushManager />
 
         {/* Meta Pixel — cấu hình trong Cài đặt → Website & Tracking */}
         {pixelId && (

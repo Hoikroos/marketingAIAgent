@@ -43,6 +43,7 @@ model User {
   adCampaigns   AdCampaign[]
   socialMetrics SocialMetric[]
   trends        Trend[]
+  pushSubscriptions PushSubscription[]
 }
 
 model Content {
@@ -132,6 +133,17 @@ model Notification {
   @@index([userId])
 }
 
+model PushSubscription {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
 model ActivityLog {
   id         Int      @id @default(autoincrement())
   userId     Int?
