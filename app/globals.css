@@ -389,19 +389,28 @@ html.light .card .text-white { color: var(--text) !important; }
 }
 
 /* ---------------------------------------------------------------------------
-   FIX MOBILE: iOS Safari tu dong zoom khi focus vao o nhap co font-size < 16px.
-   Tren man hinh nho (mobile), nang moi o nhap/textarea/select len 16px de khong
-   bi phong to trang khi cham vao o nhap. desktop (>640px) giu nguyen thiet ke.
+   MOBILE: chan zoom bang viewport maximumScale=1 (app/layout.tsx) nen cac o
+   nhap giu duoc font nho nhu thiet ke. Trong BANG (table) cac chuc nang, chu
+   va o loc/tim kiem giu co nho gon 12-13px - vua doc, khong to lo.
    --------------------------------------------------------------------------- */
 @media (max-width: 640px) {
-  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
-  textarea,
-  select {
-    font-size: 16px !important;
-    line-height: 1.4 !important;
+  table th,
+  table td {
+    font-size: 12px !important;
+  }
+  table .input,
+  table input,
+  table select,
+  table textarea {
+    font-size: 12px !important;
+    line-height: 1.35 !important;
+  }
+  input.input,
+  select.input,
+  textarea.input {
+    font-size: 13px !important;
   }
 }
-
 /* Mobile: button/lien phan hoi tap NGAY — bo tre 300ms double-tap-zoom + bo highlight xanh */
 button, a, [role="button"] {
   touch-action: manipulation;

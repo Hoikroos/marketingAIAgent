@@ -1,5 +1,5 @@
 import "./globals.css";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import { Inter } from "next/font/google";
 import Providers from "@/components/Providers";
@@ -14,6 +14,15 @@ const inter = Inter({
 });
 
 const DEFAULT_LOGO = "/api/files/images/logoTPL.png";
+
+/** Viewport mobile: maximumScale=1 chặn iOS Safari TỰ ZOOM khi focus vào ô nhập
+ *  (font-size nhỏ < 16px vẫn dùng được) — pinch zoom của người dùng vẫn hoạt động
+ *  trên iOS 10+ vì Safari bỏ qua maximum-scale với cử chỉ pinch. */
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+};
 
 /** Metadata động: favicon/icon theo logo tùy chỉnh (nếu có) trong Cài đặt hệ thống. */
 export async function generateMetadata(): Promise<Metadata> {
