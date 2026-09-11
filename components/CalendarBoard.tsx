@@ -1,8 +1,9 @@
-﻿"use client";
+"use client";
 import { useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
-import { Plus, ChevronLeft, ChevronRight } from "./icons";
+import { Plus, ChevronLeft, ChevronRight, Eye } from "./icons";
 import { EditScheduledButton, EditExternalButton, AddScheduledButton } from "./ScheduledContentModal";
+import Modal from "./Modal";
 import usePerm from "./usePerm";
 import { isAdminLike } from "@/lib/permissions";
 
@@ -66,20 +67,30 @@ function buildMonthGrid(monthDate: Date) {
 
 const MAX_VISIBLE_PER_DAY = 3;
 
-/** Card nhỏ cho 1 mục lịch — nội dung tím, sự kiện ngoài hồng 📌 + nút Sửa (CHỈ hiện
- *  với người tạo hoặc Admin — server cũng chặn: người khác sửa/xoá sẽ bị 403). */
-function DayItemCard({ it, editable }: { it: Item; editable: boolean }) {
+/** Card nhỏ cho 1 mục lịch — nội dung tím, sự kiện ngoài hồng 📌 + nút 👁 xem chi tiết
+ *  (nút Sửa CHỈ hiện với người tạo hoặc Admin — server cũng chặn 403). */
+function DayItemCard({ it, editable, onView }: { it: Item; editable: boolean; onView: () => void }) {
   const ui = TONE_UI[it.external ? "sky" : "purple"];
   return (
     <div className={`group rounded-md px-1.5 py-1 border text-left ${ui.border} ${ui.bg} transition hover:brightness-125`} title={it.external ? `${it.title}${it.note ? " — " + it.note : ""}${it.authorName ? " — tạo bởi " + it.authorName : ""}` : `${it.title}${it.authorName ? " — tạo bởi " + it.authorName : ""}`}>
       <div className="flex items-center gap-1 min-w-0">
         <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${ui.dot}`} />
         <span className="text-[10px] font-bold truncate">{it.external ? "📌 " : ""}{it.title}</span>
-        {editable && (
-          <span className="ml-auto opacity-0 group-hover:opacity-100 transition shrink-0">
-            {it.external ? <EditExternalButton item={{ id: it.id, title: it.title, eventDate: it.scheduledAt, note: it.note }} /> : <EditScheduledButton item={it} />}
-          </span>
-        )}
+        <span className="ml-auto flex items-center gap-0.5 shrink-0">
+          <button
+            onClick={(e) => { e.stopPropagation(); onView(); }}
+            className="p-0.5 rounded text-slate-400 hover:text-[#1b98e0] transition"
+            title="Xem chi tiết (tiêu đề, thời gian, người tạo)"
+            type="button"
+          >
+            <Eye size={11} />
+          </button>
+          {editable && (
+            <span className="opacity-0 group-hover:opacity-100 transition">
+              {it.external ? <EditExternalButton item={{ id: it.id, title: it.title, eventDate: it.scheduledAt, note: it.note }} /> : <EditScheduledButton item={it} />}
+            </span>
+          )}
+        </span>
       </div>
       <div className={`flex items-center ${editable ? "justify-between" : ""} gap-1 mt-0.5 pl-2.5`}>
         <span className="text-[8px] text-slate-500 truncate">
@@ -104,6 +115,7 @@ export default function CalendarBoard({ items, events }: { items?: Item[] | null
   const [view, setView] = useState<"month" | "week">("month");
   const [monthOffset, setMonthOffset] = useState(0);
   const [weekOffset, setWeekOffset] = useState(0);
+  const [viewItem, setViewItem] = useState<Item | null>(null);
   const canCreateContent = usePerm("content_studio_create") || usePerm("content_create");
   const today = useMemo(() => new Date(), []);
 
@@ -276,7 +288,7 @@ export default function CalendarBoard({ items, events }: { items?: Item[] | null
 
                         <div className="space-y-1">
                           {visible.map((it) => (
-                            <DayItemCard key={it.id} it={it} editable={canTouch(it.authorId)} />
+                            <DayItemCard key={it.id} it={it} editable={canTouch(it.authorId)} onView={() => setViewItem(it)} />
                           ))}
                           {overflowCount > 0 && (
                             <div className="text-[9px] text-slate-500 font-semibold px-1">
@@ -315,7 +327,7 @@ export default function CalendarBoard({ items, events }: { items?: Item[] | null
                       </div>
                       <div className="space-y-1">
                         {visible.map((it) => (
-                          <DayItemCard key={it.id} it={it} editable={canTouch(it.authorId)} />
+                          <DayItemCard key={it.id} it={it} editable={canTouch(it.authorId)} onView={() => setViewItem(it)} />
                         ))}
                         {overflowCount > 0 && (
                           <div className="text-[9px] text-slate-500 font-semibold px-1">
@@ -348,6 +360,56 @@ export default function CalendarBoard({ items, events }: { items?: Item[] | null
           {safeItems.length} nội dung đã lên lịch · {safeEvents.length} sự kiện ngoài
         </span>
       </div>
+
+      {/* Modal xem chi tiết 1 mục lịch — tiêu đề đầy đủ, thời gian, người tạo */}
+      <Modal open={!!viewItem} onClose={() => setViewItem(null)} title="Chi tiết lịch">
+        {viewItem && (
+          <div className="space-y-3">
+            <div>
+              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Tiêu đề</p>
+              <p className="text-[14px] font-bold leading-snug">{viewItem.external ? "📌 " : ""}{viewItem.title}</p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Thời gian</p>
+                <p className="text-[12px]">
+                  {new Date(viewItem.scheduledAt).toLocaleString("vi-VN", {
+                    weekday: "long",
+                    day: "2-digit",
+                    month: "2-digit",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Kênh</p>
+                <p className="text-[12px]">{viewItem.external ? "📌 Sự kiện ngoài" : viewItem.platform}</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Người tạo</p>
+                <p className="text-[12px]">👤 {viewItem.authorName || "Không rõ"}</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Loại</p>
+                <p className="text-[12px]">{viewItem.external ? "Sự kiện ngoài" : "Nội dung đăng"}</p>
+              </div>
+            </div>
+            {viewItem.note && (
+              <div>
+                <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Ghi chú</p>
+                <p className="text-[12px] text-slate-300">{viewItem.note}</p>
+              </div>
+            )}
+            <div className="flex justify-end pt-2 border-t border-[var(--border-soft)]">
+              <button onClick={() => setViewItem(null)} className="px-4 py-2 rounded-lg bg-[#1b98e0] text-white text-[12px] font-bold hover:bg-[#1376b0] transition" type="button">
+                Đóng
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }
