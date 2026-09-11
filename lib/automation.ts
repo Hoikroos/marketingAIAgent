@@ -2,8 +2,9 @@ import { prisma } from "@/lib/prisma";
 
 /**
  * TỰ ĐỘNG HOÁ — 3 tác vụ chạy định kỳ (bấm "Chạy ngay" trong Settings hoặc cron ngoài):
- * 1. Nhắc đăng bài — 2 mốc: (a) 7h sáng các bài đăng trong ngày, (b) 1 tiếng trước giờ đăng
- *    → thông báo cho tác giả (mỗi mốc có chống trùng riêng)
+ * 1. Nhắc đăng bài — 3 mốc: (a) 7h sáng các bài đăng trong ngày, (b) 1 tiếng trước giờ đăng,
+ *    (c) 30 phút trước giờ đăng
+ *    → thông báo cho tác giả (mỗi mốc có chống trùng riêng) + đẩy Web Push ra thiết bị
  * 2. Follow-up lead cũ: lead chưa được liên hệ sau X ngày (Settings) → thông báo cho người phụ trách
  * 3. Báo cáo tuần: tổng hợp 7 ngày (leads, nội dung, chi tiêu ads) → thông báo chung
  * Mỗi tác vụ có cơ chế chống trùng: chỉ tạo 1 thông báo cùng loại/ngày.
@@ -98,6 +99,28 @@ export async function runAllJobs(): Promise<AutomationResults> {
           type: "reminder_1h",
           title: "⏰ 1 tiếng nữa đến giờ đăng!",
           content: `"${c.title}" sẽ đăng lúc ${when} — còn 1 tiếng nữa, kiểm tra và đăng ngay!`,
+          refId: c.id,
+          link: "/dashboard/calendar",
+        },
+      });
+      res.reminders++;
+    }
+
+    // (c) NHÁC 30 PHÚT TRƯỚC GIỜ ĐĂNG — chỉ còn ≤30 phút
+    const inThirtyMin = new Date(now.getTime() + 30 * 60 * 1000);
+    const due30 = await prisma.content.findMany({
+      where: { scheduledAt: { gte: now, lte: inThirtyMin } },
+    });
+    for (const c of due30) {
+      // chống trùng: mỗi content chỉ nhắc 1 lần trong 60 phút (đủ phủ cửa sổ 30 phút)
+      if (await notifiedSince("reminder_30m", c.id, 60)) continue;
+      const when = c.scheduledAt ? new Date(c.scheduledAt).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }) : "";
+      await prisma.notification.create({
+        data: {
+          userId: c.authorId ?? broadcastId,
+          type: "reminder_30m",
+          title: "⏳ 30 phút nữa đến giờ đăng!",
+          content: `"${c.title}" sẽ đăng lúc ${when} — chỉ còn 30 phút nữa, chuẩn bị đăng ngay!`,
           refId: c.id,
           link: "/dashboard/calendar",
         },
