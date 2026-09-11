@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useToast } from "./toast";
-import { Spinner } from "./ui";
+import { Spinner, Field } from "./ui";
+import Modal from "./Modal";
 import {
   Bot,
   Sparkles,
@@ -183,9 +184,47 @@ export default function AssistantChat() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
+  // Cài đặt Trợ lý AI (chỉ Admin)
+  const [canEditAss, setCanEditAss] = useState(false);
+  const [setOpen, setSetOpen] = useState(false);
+  const [savingSet, setSavingSet] = useState(false);
+  const [assCfg, setAssCfg] = useState({ model: "", temperature: 0.5, maxTokens: 2000, useData: true });
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
+
+  // Nạp cài đặt Trợ lý AI (ai có quyền Trợ lý cũng đọc được; Admin mới thấy nút sửa)
+  useEffect(() => {
+    (async () => {
+      try {
+        const d = await fetch("/api/assistant/settings").then((r) => r.json());
+        if (d.ok) {
+          setAssCfg(d.settings);
+          setCanEditAss(!!d.canEdit);
+        }
+      } catch {}
+    })();
+  }, []);
+
+  async function saveAssistantSettings() {
+    setSavingSet(true);
+    try {
+      const res = await fetch("/api/assistant/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(assCfg),
+      });
+      const d = await res.json();
+      if (!res.ok || !d.ok) throw new Error(d.error || "Lỗi lưu cài đặt");
+      setAssCfg(d.settings);
+      setSetOpen(false);
+      toast.success("Đã lưu cài đặt Trợ lý AI", "Áp dụng cho các câu trả lời tiếp theo.");
+    } catch (e: any) {
+      toast.error("Lưu cài đặt thất bại", e?.message || String(e));
+    } finally {
+      setSavingSet(false);
+    }
+  }
 
   async function loadConversations(): Promise<Conv[]> {
     try {
@@ -602,6 +641,17 @@ export default function AssistantChat() {
               <Search size={15} />
             </button>
 
+            {canEditAss && (
+              <button
+                onClick={() => setSetOpen(true)}
+                className="p-2 rounded-lg text-slate-400 hover:bg-[var(--panel2)] hover:text-white transition"
+                title="Cài đặt Trợ lý AI"
+                type="button"
+              >
+                <Settings size={15} />
+              </button>
+            )}
+
             {sessionId && viewing?.mine && (
               <button
                 onClick={() => { const cv = conversations.find((x) => x.id === sessionId); if (cv) toggleShare(cv); }}
@@ -858,6 +908,78 @@ export default function AssistantChat() {
           )}
         </div>
       </div>
+
+      {/* Modal cài đặt Trợ lý AI — chỉ Admin */}
+      <Modal open={setOpen} onClose={() => setSetOpen(false)} title="Cài đặt Trợ lý AI">
+        <div className="space-y-4">
+          <Field label="Model AI dành riêng cho Trợ lý">
+            <input
+              className="input w-full"
+              value={assCfg.model}
+              onChange={(e) => setAssCfg((c) => ({ ...c, model: e.target.value }))}
+              placeholder="Để trống = dùng model hệ thống (Cài đặt → AI)"
+            />
+            <p className="text-[10px] text-slate-400 mt-1">Ví dụ: openai/gpt-oss-120b, llama-3.3-70b-versatile, nvidia/nemotron-3.5-lightning:free</p>
+          </Field>
+
+          <Field label={`Mức sáng tạo (temperature): ${assCfg.temperature.toFixed(1)}`}>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.1}
+              value={assCfg.temperature}
+              onChange={(e) => setAssCfg((c) => ({ ...c, temperature: Number(e.target.value) }))}
+              className="w-full accent-[#1b98e0]"
+            />
+            <div className="flex justify-between text-[10px] text-slate-400">
+              <span>0.0 — Chính xác, bám số liệu</span>
+              <span>1.0 — Sáng tạo, tự nhiên</span>
+            </div>
+          </Field>
+
+          <Field label="Độ dài câu trả lời tối đa (tokens)">
+            <input
+              type="number"
+              min={200}
+              max={8000}
+              step={100}
+              className="input w-full"
+              value={assCfg.maxTokens}
+              onChange={(e) => setAssCfg((c) => ({ ...c, maxTokens: Number(e.target.value) || 2000 }))}
+            />
+          </Field>
+
+          <label className="flex items-center gap-2.5 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={assCfg.useData}
+              onChange={(e) => setAssCfg((c) => ({ ...c, useData: e.target.checked }))}
+              className="accent-[#1b98e0] h-4 w-4"
+            />
+            <span className="text-[12px]">
+              Trợ lý đọc <b>số liệu hệ thống</b> (leads, nội dung, chiến dịch, trend...) khi trả lời
+            </span>
+          </label>
+          <p className="text-[10px] text-slate-400 -mt-2 ml-7">
+            Tắt nếu chỉ muốn trò chuyện thông thường — câu trả lời sẽ nhanh hơn và không tốn token đọc dữ liệu.
+          </p>
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-[var(--border-soft)]">
+            <button onClick={() => setSetOpen(false)} className="px-4 py-2 rounded-lg text-[12px] font-semibold text-slate-400 hover:text-white transition" type="button">
+              Huỷ
+            </button>
+            <button
+              onClick={saveAssistantSettings}
+              disabled={savingSet}
+              className="px-4 py-2 rounded-lg bg-[#1b98e0] text-white text-[12px] font-bold hover:bg-[#1376b0] transition disabled:opacity-50 flex items-center gap-1.5"
+              type="button"
+            >
+              {savingSet ? <Spinner size={13} /> : <Check size={13} />} Lưu cài đặt
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Sidebar mobile overlay */}
       {showSidebar && (

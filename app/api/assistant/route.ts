@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
   const rawAtts: any[] = Array.isArray(body?.attachments) ? body.attachments : [];
   const attachments = rawAtts
     .slice(0, 5)
-    .filter((a) => a && typeof a.url === "string" && /^\/uploads\/chat\//.test(a.url))
+    .filter((a) => a && typeof a.url === "string" && /^\/(api\/files\/|uploads\/)chat\//.test(a.url))
     .map((a) => ({
       url: String(a.url),
       name: String(a.name || "file").slice(0, 120),
@@ -74,8 +74,23 @@ export async function POST(req: NextRequest) {
     }, { status: 400 });
   }
 
+  // Cài đặt riêng của Trợ lý (Admin chỉnh qua nút Cài đặt trong khung chat)
+  let assModel = "", assTemp = 0.5, assMax = 2000, assUseData = true;
+  try {
+    const rows = await prisma.setting.findMany({
+      where: { key: { in: ["assistantModel", "assistantTemperature", "assistantMaxTokens", "assistantUseData"] } },
+    });
+    const g = (k: string) => rows.find((r) => r.key === k)?.value || "";
+    assModel = g("assistantModel");
+    assTemp = Math.min(1, Math.max(0, Number(g("assistantTemperature")) || 0.5));
+    assMax = Math.min(8000, Math.max(200, Number(g("assistantMaxTokens")) || 2000));
+    assUseData = g("assistantUseData") !== "false";
+  } catch {}
+
   let context = "";
-  try { context = await buildContext(); } catch {}
+  if (assUseData) {
+    try { context = await buildContext(); } catch {}
+  }
 
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
@@ -89,13 +104,15 @@ export async function POST(req: NextRequest) {
           // Chặn treo vô hạn khi model free của OpenRouter chậm/đứng trong hàng chờ
           signal: AbortSignal.timeout(120_000),
           body: JSON.stringify({
-            model: cfg.model,
+            model: assModel || cfg.model,
             messages: [
               { role: "system", content: SYSTEM_PROMPT },
-              { role: "user", content: `DỮ LIỆU HỆ THỐNG (thời điểm hiện tại):\n${context}\n\nCÂU HỎI CỦA NGƯỜI DÙNG: ${effectiveQuestion}${attNote}` },
+              { role: "user", content: assUseData
+                ? `DỮ LIỆU HỆ THỐNG (thời điểm hiện tại):\n${context}\n\nCÂU HỎI CỦA NGƯỜI DÙNG: ${effectiveQuestion}${attNote}`
+                : `CÂU HỎI CỦA NGƯỜI DÙNG: ${effectiveQuestion}${attNote}` },
             ],
-            temperature: 0.5,
-            max_tokens: 2000,
+            temperature: assTemp,
+            max_tokens: assMax,
             stream: true,
           }),
         });
