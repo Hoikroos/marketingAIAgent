@@ -334,6 +334,18 @@ export default function UsersManager() {
   }
 
   async function updateUser(id: number, patch: any) {
+    // OPTIMISTIC UPDATE: cập nhật giao diện NGAY LẬP TỨC (quan trọng trên mobile —
+    // trước đây phải chờ API + load lại toàn bộ danh sách (~vài giây trên Render free)
+    // mới thấy tick), gọi API nền; nếu lỗi thì tải lại dữ liệu thật để hoàn tác.
+    setUsers((arr) =>
+      arr.map((u) => {
+        if (u.id !== id) return u;
+        const merged: any = { ...u, ...patch };
+        // permissions trong state là chuỗi JSON (server nhận mảng rồi tự stringify)
+        if (Array.isArray(patch.permissions)) merged.permissions = JSON.stringify(patch.permissions);
+        return merged;
+      })
+    );
     try {
       const res = await fetch("/api/users", {
         method: "PATCH",
@@ -344,8 +356,10 @@ export default function UsersManager() {
       if (!res.ok || !data.ok) throw new Error(data.error || "Cập nhật thất bại");
       toast.success("Đã cập nhật tài khoản");
       router.refresh();
-      await load();
-    } catch (err: any) { toast.error("Cập nhật thất bại", err.message || ""); }
+    } catch (err: any) {
+      toast.error("Cập nhật thất bại", err.message || "");
+      await load(); // khôi phục dữ liệu thật từ server
+    }
   }
 
   async function createUser(e: React.FormEvent) {

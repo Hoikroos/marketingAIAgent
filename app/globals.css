@@ -401,3 +401,9 @@ html.light .card .text-white { color: var(--text) !important; }
     line-height: 1.4 !important;
   }
 }
+
+/* Mobile: button/lien phan hoi tap NGAY — bo tre 300ms double-tap-zoom + bo highlight xanh */
+button, a, [role="button"] {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
