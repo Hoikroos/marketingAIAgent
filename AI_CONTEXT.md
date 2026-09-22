@@ -360,6 +360,7 @@ Mỗi trang = async server component dùng `PageShell` (trừ Dashboard dùng `D
 | `/dashboard/insights` | AI Insights | getInsights(30), getTrends(3), getProjects(2) | — |
 | `/dashboard/team` | Team Collaboration | getTasks(100) | CreateTaskModal, TaskStatusBadge |
 | `/dashboard/workflow` (+/new) | Workflow (n8n) | getWorkflows(50) | CreateWorkflowModal, WorkflowCard, RunAllWorkflowsButton |
+| `/dashboard/work-stats` | Thống kê công việc (tuần/tháng/quý/năm, so sánh từng kỳ + theo chức năng/người) | ActivityLog, Task, Content, Lead, Report, DailyReport, SocialMetric, AdCampaign | WorkStatsBoard |
 | `/dashboard/reports` | Báo cáo | getOverviewStats, getDailySeries | ReportsControls (xuất CSV) |
 | `/dashboard/settings` | Cài đặt hệ thống | (client fetch /api/settings) | Toggle, Field |
 | `/dashboard/profile` | Hồ sơ cá nhân | (client fetch /api/profile) | ProfileManager (tab Hồ sơ / Đổi mật khẩu) |

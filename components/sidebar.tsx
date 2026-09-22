@@ -31,6 +31,7 @@ const navItems: (NavItem & { group: string })[] = [
 
   { group: "Vận hành", label: "Cộng tác nhóm", href: "/dashboard/team", icon: "UserRoundCheck", perm: "team" },
   { group: "Vận hành", label: "Báo cáo", href: "/dashboard/reports", icon: "FileBarChart", perm: "reports" },
+  { group: "Vận hành", label: "Thống kê công việc", href: "/dashboard/work-stats", icon: "BarChart3", perm: "reports" },
   { group: "Vận hành", label: "Phân tích Marketing", href: "/dashboard/analytics", icon: "Target", perm: "analytics" },
   { group: "Vận hành", label: "UTM Builder", href: "/dashboard/tools/utm", icon: "Link2", perm: "utm" },
   { group: "Vận hành", label: "Báo cáo công việc", href: "/dashboard/work-reports", icon: "ClipboardList", perm: "reports_work" },
