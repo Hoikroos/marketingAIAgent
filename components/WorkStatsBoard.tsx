@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import {
   BarChart,
   Bar,
@@ -11,7 +11,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
-import { TrendingUp, TrendingDown } from "./icons";
+import { TrendingUp, TrendingDown, Lightbulb, CheckCircle2, Target, ClipboardList, Share2 } from "./icons";
 import {
   GRAN_LABEL,
   MODULE_LABEL,
@@ -166,15 +166,62 @@ export default function WorkStatsBoard({ data }: { data: WorkStatsData }) {
       .sort((a, b) => b.cur - a.cur || b.prev - a.prev);
   }, [data.tasks, gran, activeKey, prevKey]);
 
-  const kpiCards: { label: string; cur: number; prev: number }[] = [
-    { label: "Công việc hoàn thành", cur: curMetrics.tasksDone, prev: prevMetrics.tasksDone },
-    { label: "Nội dung tạo mới", cur: curMetrics.contentsPublished, prev: prevMetrics.contentsPublished },
-    { label: "Lead đã chốt", cur: curMetrics.leadsWon, prev: prevMetrics.leadsWon },
-    { label: "Báo cáo đã nộp", cur: curMetrics.reportsSubmitted, prev: prevMetrics.reportsSubmitted },
-    { label: "Nhật ký công việc", cur: curMetrics.dailyReports, prev: prevMetrics.dailyReports },
-    { label: "Lần nhập số liệu MXH", cur: curMetrics.socialEntries, prev: prevMetrics.socialEntries },
-    { label: "Chiến dịch ads tạo mới", cur: curMetrics.adsCreated, prev: prevMetrics.adsCreated },
+  /** KPI chia nhóm theo góc nhìn quản lý, kèm giải thích bằng lời văn đơn giản */
+  const kpiGroups: { title: string; icon: ReactNode; items: { label: string; desc: string; cur: number; prev: number }[] }[] = [
+    {
+      title: "Kết quả kinh doanh",
+      icon: <Target size={14} className="text-emerald-400" />,
+      items: [
+        { label: "Lead đã chốt", desc: "Số khách hàng tiềm năng được chốt thành công trong kỳ", cur: curMetrics.leadsWon, prev: prevMetrics.leadsWon },
+        { label: "Chiến dịch ads tạo mới", desc: "Số chiến dịch quảng cáo được lập trong kỳ", cur: curMetrics.adsCreated, prev: prevMetrics.adsCreated },
+      ],
+    },
+    {
+      title: "Nội dung & Marketing",
+      icon: <Share2 size={14} className="text-sky-400" />,
+      items: [
+        { label: "Nội dung tạo mới", desc: "Số bài viết / video được thêm vào hệ thống trong kỳ", cur: curMetrics.contentsPublished, prev: prevMetrics.contentsPublished },
+        { label: "Lần nhập số liệu MXH", desc: "Số lần báo cáo follow / view / tương tác mạng xã hội", cur: curMetrics.socialEntries, prev: prevMetrics.socialEntries },
+      ],
+    },
+    {
+      title: "Vận hành & công việc",
+      icon: <ClipboardList size={14} className="text-amber-400" />,
+      items: [
+        { label: "Công việc hoàn thành", desc: "Số công việc được đánh dấu Đã hoàn thành trong kỳ", cur: curMetrics.tasksDone, prev: prevMetrics.tasksDone },
+        { label: "Báo cáo đã nộp", desc: "Số file báo cáo công việc nhân viên đã nộp", cur: curMetrics.reportsSubmitted, prev: prevMetrics.reportsSubmitted },
+        { label: "Nhật ký công việc", desc: "Số nhật ký làm việc hằng ngày đã ghi", cur: curMetrics.dailyReports, prev: prevMetrics.dailyReports },
+      ],
+    },
   ];
+
+  /** Nhận xét tự động bằng lời văn cho quản lý */
+  const insight = useMemo(() => {
+    const curTotal = metricsTotal(curMetrics);
+    const prevTotal = metricsTotal(prevMetrics);
+    const g = growth(curTotal, prevTotal);
+    const trend =
+      g === null ? "Ổn định" : g >= 10 ? "Đang tiến bộ rõ rệt" : g > 0 ? "Đang tăng nhẹ" : g === 0 ? "Ổn định" : g > -10 ? "Hơi chậm lại" : "Đang chậm lại rõ rệt";
+    const trendUp = (g ?? 0) >= 0;
+    const topAssignee = assigneeRows.find((p) => p.cur > 0) || null;
+    const topModule = moduleRows.find((m) => m.cur > 0) || null;
+    const bestPeriod = [...series].sort((a, b) => b.total - a.total)[0] || null;
+
+    const sentences: string[] = [];
+    sentences.push(
+      `${GRAN_LABEL[gran]} ${periodLabel(activeKey, gran)}: nhóm thực hiện tổng cộng ${curTotal} công việc / kết quả, ` +
+      (g === null ? "không có số liệu kỳ trước để so sánh." : `${trendUp ? "tăng" : "giảm"} ${Math.abs(g).toFixed(0)}% so với ${prevKey ? periodLabel(prevKey, gran) : "kỳ trước"} (${prevTotal}).`)
+    );
+    sentences.push(
+      `Công việc: hoàn thành ${curMetrics.tasksDone} việc, nộp ${curMetrics.reportsSubmitted} báo cáo, ghi ${curMetrics.dailyReports} nhật ký.` +
+      (curMetrics.leadsWon > 0 ? ` Kinh doanh chốt ${curMetrics.leadsWon} khách hàng tiềm năng.` : " Chưa có lead nào được chốt trong kỳ.")
+    );
+    if (topAssignee) sentences.push(`Người hoàn thành nhiều việc nhất: ${topAssignee.name} (${topAssignee.cur} việc).`);
+    if (topModule) sentences.push(`Chức năng được sử dụng nhiều nhất: ${topModule.label} (${topModule.cur} lượt thao tác).`);
+    if (bestPeriod) sentences.push(`Kỳ làm việc tốt nhất trong ${SERIES_LEN[gran]} ${GRAN_LABEL[gran].toLowerCase()} gần đây: ${periodLabel(bestPeriod.key, gran)} với ${bestPeriod.total} kết quả.`);
+
+    return { trend, trendUp, sentences };
+  }, [curMetrics, prevMetrics, gran, activeKey, prevKey, assigneeRows, moduleRows, series]);
 
   return (
     <div className="space-y-4">
@@ -201,15 +248,47 @@ export default function WorkStatsBoard({ data }: { data: WorkStatsData }) {
         </div>
       </div>
 
-      {/* KPI kỳ đang chọn vs kỳ trước */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {kpiCards.map((k) => (
-          <div key={k.label} className="card p-4">
-            <div className="text-xs text-slate-400 mb-1">{k.label}</div>
-            <div className="text-2xl font-bold">{k.cur}</div>
-            <div className="mt-1 flex items-center gap-2 text-[11px] text-slate-500">
-              <GrowthBadge cur={k.cur} prev={k.prev} />
-              <span>so với {prevKey ? periodLabel(prevKey, gran) : "kỳ trước"} ({k.prev})</span>
+      {/* Tóm tắt bằng lời văn cho quản lý */}
+      <div className="card p-5">
+        <div className="flex flex-wrap items-center gap-2 mb-3">
+          <Lightbulb size={15} className="text-amber-400" />
+          <div className="font-extrabold text-sm">TÓM TẮT CHO QUẢN LÝ</div>
+          <span className={`ml-auto text-[11px] font-bold px-2.5 py-1 rounded-lg ${insight.trendUp ? "bg-emerald-500/15 text-emerald-400" : "bg-rose-500/15 text-rose-400"}`}>
+            {insight.trend}
+          </span>
+        </div>
+        <ul className="space-y-2">
+          {insight.sentences.map((s, i) => (
+            <li key={i} className="flex items-start gap-2 text-sm text-slate-300">
+              <CheckCircle2 size={14} className="text-[#1b98e0] mt-0.5 shrink-0" />
+              <span>{s}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {/* KPI chia nhóm + giải thích */}
+      <div className="space-y-3">
+        {kpiGroups.map((group) => (
+          <div key={group.title} className="card p-4">
+            <div className="flex items-center gap-2 mb-3">
+              {group.icon}
+              <div className="font-bold text-sm">{group.title}</div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {group.items.map((k) => (
+                <div key={k.label} className="p-3 bg-[var(--panel2)] rounded-lg">
+                  <div className="text-xs text-slate-400">{k.label}</div>
+                  <div className="flex items-baseline gap-2 mt-0.5">
+                    <div className="text-2xl font-bold">{k.cur}</div>
+                    <GrowthBadge cur={k.cur} prev={k.prev} />
+                  </div>
+                  <div className="text-[11px] text-slate-500 mt-1">{k.desc}</div>
+                  <div className="text-[11px] text-slate-500">
+                    Kỳ trước: <span className="text-slate-300 font-medium">{k.prev}</span>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         ))}
@@ -217,9 +296,8 @@ export default function WorkStatsBoard({ data }: { data: WorkStatsData }) {
 
       {/* Biểu đồ tổng hợp theo từng kỳ */}
       <div className="card p-5">
-        <div className="font-extrabold text-sm tracking-tight mb-4">
-          TỔNG HỢP THEO TỪNG {GRAN_LABEL[gran].toUpperCase()} (GẦN NHẤT)
-        </div>
+        <div className="font-extrabold text-sm tracking-tight">TỔNG HỢP THEO TỪNG {GRAN_LABEL[gran].toUpperCase()} (GẦN NHẤT)</div>
+        <div className="text-[11px] text-slate-500 mt-0.5 mb-4">Cột càng cao = kỳ đó làm được càng nhiều. So sánh trực quan mức độ làm việc giữa các kỳ.</div>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={series}>
             <CartesianGrid stroke="var(--border-soft)" strokeDasharray="3 3" />
