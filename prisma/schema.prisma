@@ -183,6 +183,20 @@ model SocialChannel {
   @@unique([platform, name])
 }
 
+/**
+ * File do người dùng tải lên (avatar, logo, chat, báo cáo công việc, thông báo...).
+ * Lưu thẳng vào DB (bytea) để BỀN VỮNG qua deploy/restart — ổ đĩa của Render free
+ * tier là tạm thời (mỗi deploy mất sạch file trong thư mục uploads/).
+ * `path` là đường dẫn tương đối không có tiền tố "uploads/" (vd "avatars/avatar_x.jpg").
+ */
+model StoredFile {
+  path      String   @id
+  mime      String
+  size      Int
+  data      Bytes
+  createdAt DateTime @default(now())
+}
+
 model Report {
   id          Int       @id @default(autoincrement())
   title       String

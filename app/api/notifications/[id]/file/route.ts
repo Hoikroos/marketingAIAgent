@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { canAccess, isAdminLike } from "@/lib/permissions";
-import { readFile } from "fs/promises";
-import path from "path";
+import { readFileStored } from "@/lib/storage";
 
 /** User đại diện cho "Hệ thống" — thông báo CHUNG hiển thị cho tất cả mọi người */
 const BROADCAST_EMAIL = "system@company.vn";
@@ -27,11 +26,9 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     return NextResponse.json({ ok: false, error: "Không có quyền tải file" }, { status: 403 });
   }
 
-  const abs = path.resolve(process.cwd(), notif.filePath);
-  let data: Buffer;
-  try {
-    data = await readFile(abs);
-  } catch {
+  // Đọc từ DATABASE (bền vững qua deploy) → fallback ổ đĩa cho file cũ
+  const data = await readFileStored(notif.filePath);
+  if (!data) {
     return NextResponse.json({ ok: false, error: "Không đọc được file" }, { status: 404 });
   }
   const ext = (notif.fileName.split(".").pop() || "docx");

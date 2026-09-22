@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { canAccess, isAdminLike } from "@/lib/permissions";
-import { readFile } from "fs/promises";
-import path from "path";
+import { readFileStored } from "@/lib/storage";
 import { inflateRawSync } from "zlib";
 
 async function canView(user: any, report: any) {
@@ -102,11 +101,9 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   if (!report || !report.filePath) return NextResponse.json({ ok: false, error: "Không có file" }, { status: 404 });
   if (!(await canView(user, report))) return NextResponse.json({ ok: false, error: "Không có quyền xem" }, { status: 403 });
 
-  const abs = path.resolve(process.cwd(), report.filePath);
-  let data: Buffer;
-  try {
-    data = await readFile(abs);
-  } catch {
+  // Đọc từ DATABASE (bền vững qua deploy) → fallback ổ đĩa cho file cũ
+  const data = await readFileStored(report.filePath);
+  if (!data) {
     return NextResponse.json({ ok: false, error: "Không đọc được file" }, { status: 404 });
   }
 

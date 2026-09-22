@@ -151,6 +151,7 @@ Tất cả model dùng `id Int @id @default(autoincrement())`. Ngày mặc đị
 | **Workflow** | name, description?, status (default "Running"), lastRun?, executions Int | — |
 | **Insight** | type, title, description, priority (default "medium") | — |
 | **SocialMetric** | platform, channel, followers, views, engagement, **videosPosted** (số video đã đăng trong tuần), weekLabel, note | owner (User) |
+| **StoredFile** | path (PK, vd "avatars/avatar_x.jpg"), mime, size, data (Bytes/bytea) — **mọi file upload lưu VÀO DB** để bền vững qua deploy/restart trên Render | — |
 | **Setting** | companyName "Tân Phú Land", brandColor "#6d36e8", slogan, aiModel, n8nWebhook, openaiKey, dbName, dbServer, notifyTrend/notifyContent/notifyViral Boolean | 1 bản ghi duy nhất |
 | **Notification** | userId, type (default "lead"), title, body?, refId?, read Boolean (default false), createdAt | user (User, onDelete Cascade) |
 | **Report** | title, period ("week"\|"month"), periodLabel, employeeId, status ("Chưa nộp"\|"Đã nộp"), fileName?, filePath?, submittedAt?, createdById? | employee (User, NoAction), createdBy (User, SetNull) |

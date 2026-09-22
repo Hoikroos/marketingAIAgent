@@ -1,15 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import { writeFile, mkdir, unlink } from "fs/promises";
-import path from "path";
 import { requireAdminApi } from "@/lib/guard";
 import { getLogoUrl, setLogoUrl } from "@/lib/brandLogo";
+import { saveFile, deleteStoredFile } from "@/lib/storage";
 
 const ALLOWED = ["png", "jpg", "jpeg", "gif", "webp", "svg"];
 const MAX_BYTES = 5 * 1024 * 1024; // 5MB
-const LOGO_DIR = path.join(process.cwd(), "uploads", "images");
 const DEFAULT_LOGO = "logoTPL.png";
 
-/** POST — Admin tải logo lên, lưu vào public/uploads/images và cập nhật cấu hình. */
+/** Lấy đường dẫn tương đối (vd "images/logo_x.svg") từ URL "/api/files/images/logo_x.svg" */
+function relFromUrl(url: string): string | null {
+  const m = url.match(/\/api\/files\/(.+)$/);
+  return m ? m[1] : null;
+}
+
+/** POST — Admin tải logo lên (lưu vào DATABASE, bền vững qua deploy/restart) và cập nhật cấu hình. */
 export async function POST(req: NextRequest) {
   const denied = await requireAdminApi();
   if (denied) return denied;
@@ -33,13 +37,16 @@ export async function POST(req: NextRequest) {
     if (oldUrl) {
       const oldName = oldUrl.split("/").pop();
       if (oldName && oldName !== DEFAULT_LOGO) {
-        try { await unlink(path.join(LOGO_DIR, oldName)); } catch {}
+        const oldRel = relFromUrl(oldUrl);
+        if (oldRel) await deleteStoredFile(oldRel);
       }
     }
 
-    await mkdir(LOGO_DIR, { recursive: true });
     const safe = `logo_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
-    await writeFile(path.join(LOGO_DIR, safe), Buffer.from(await f.arrayBuffer()));
+    const buf = Buffer.from(await f.arrayBuffer());
+    if (!(await saveFile(`images/${safe}`, buf))) {
+      return NextResponse.json({ ok: false, error: "Không lưu được ảnh" }, { status: 500 });
+    }
     const url = `/api/files/images/${safe}`;
     await setLogoUrl(url);
 
@@ -59,7 +66,8 @@ export async function DELETE() {
     if (oldUrl) {
       const oldName = oldUrl.split("/").pop();
       if (oldName && oldName !== DEFAULT_LOGO) {
-        try { await unlink(path.join(LOGO_DIR, oldName)); } catch {}
+        const oldRel = relFromUrl(oldUrl);
+        if (oldRel) await deleteStoredFile(oldRel);
       }
     }
     await setLogoUrl(null);

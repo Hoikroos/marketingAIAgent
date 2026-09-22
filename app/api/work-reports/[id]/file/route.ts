@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { canAccess, isAdminLike } from "@/lib/permissions";
-import { readFile, unlink } from "fs/promises";
-import path from "path";
+import { readFileStored, deleteStoredFile } from "@/lib/storage";
 
 async function canManage(user: any, report: any, action: string) {
   if (!user) return false;
@@ -12,7 +11,7 @@ async function canManage(user: any, report: any, action: string) {
   return isOwner && canAccess(user, `reports_work_${action}`);
 }
 
-/** Tải file báo cáo về (admin hoặc chính nhân viên) */
+/** Tải file báo cáo về (admin hoặc chính nhân viên). File đọc từ DATABASE. */
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ ok: false, error: "Chưa đăng nhập" }, { status: 401 });
@@ -24,11 +23,8 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   if (!report || !report.filePath) return NextResponse.json({ ok: false, error: "Không có file" }, { status: 404 });
   if (!(await canManage(user, report, "download"))) return NextResponse.json({ ok: false, error: "Không có quyền tải về" }, { status: 403 });
 
-  const abs = path.resolve(process.cwd(), report.filePath);
-  let data: Buffer;
-  try {
-    data = await readFile(abs);
-  } catch {
+  const data = await readFileStored(report.filePath);
+  if (!data) {
     return NextResponse.json({ ok: false, error: "Không đọc được file" }, { status: 404 });
   }
   const ext = (report.fileName?.split(".").pop() || "docx");
@@ -54,7 +50,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: { id: stri
   if (!report.filePath) return NextResponse.json({ ok: false, error: "Chưa nộp file" }, { status: 400 });
   if (!(await canManage(user, report, "delete"))) return NextResponse.json({ ok: false, error: "Không có quyền xoá file" }, { status: 403 });
 
-  try { await unlink(path.resolve(process.cwd(), report.filePath)); } catch {}
+  await deleteStoredFile(report.filePath);
 
   await prisma.report.update({
     where: { id: Number(params.id) },

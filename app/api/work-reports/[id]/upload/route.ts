@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { canAccess, isAdminLike } from "@/lib/permissions";
-import { writeFile, unlink } from "fs/promises";
 import path from "path";
-import { REPORTS_DIR, safeName, ensureDir } from "@/lib/reports";
+import { saveFile, deleteStoredFile } from "@/lib/storage";
+import { safeName } from "@/lib/reports";
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const user = await getCurrentUser();
@@ -33,16 +33,20 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   }
 
   const buf = Buffer.from(await f.arrayBuffer());
-  await ensureDir();
   const safe = `${Date.now()}_${id}_${safeName(f.name)}`;
-  const abs = path.join(REPORTS_DIR, safe);
-  const rel = path.relative(process.cwd(), abs).replace(/\\/g, "/");
 
+  // Xoá file cũ (nếu nộp lại)
   if (report.filePath) {
-    try { await unlink(path.join(process.cwd(), report.filePath)); } catch {}
+    await deleteStoredFile(report.filePath);
   }
 
-  await writeFile(abs, buf);
+  // Lưu vào DATABASE (bền vững qua deploy/restart trên Render)
+  if (!(await saveFile(`reports/${safe}`, buf))) {
+    return NextResponse.json({ ok: false, error: "Không lưu được file" }, { status: 500 });
+  }
+  // Giữ nguyên định dạng filePath cũ ("uploads/reports/<tên>") để tương thích ngược
+  const rel = `uploads/reports/${path.posix.basename(safe)}`;
+
   await prisma.report.update({
     where: { id },
     data: { fileName: f.name, filePath: rel, status: "Đã nộp", submittedAt: new Date() },

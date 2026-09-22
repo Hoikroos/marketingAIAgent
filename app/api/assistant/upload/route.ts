@@ -1,17 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
 import { requirePermApi } from "@/lib/guard";
+import { saveFile } from "@/lib/storage";
 
 const IMAGE_EXT = ["png", "jpg", "jpeg", "gif", "webp"];
 const DOC_EXT = ["pdf", "txt", "csv", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "zip"];
 const ALLOWED = [...IMAGE_EXT, ...DOC_EXT];
 const MAX_BYTES = 10 * 1024 * 1024; // 10MB
-const UPLOAD_DIR = path.join(process.cwd(), "uploads", "chat");
 
 /**
  * POST /api/assistant/upload — đính kèm file/hình ảnh vào chat Trợ lý AI.
- * Lưu vào public/uploads/chat, trả { url, name, type: "image"|"file", size }.
+ * Lưu vào DATABASE (bền vững qua deploy/restart), trả { url, name, type: "image"|"file", size }.
  */
 export async function POST(req: NextRequest) {
   const denied = await requirePermApi("assistant");
@@ -31,9 +29,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: "File tối đa 10MB" }, { status: 400 });
     }
 
-    await mkdir(UPLOAD_DIR, { recursive: true });
     const safe = `att_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
-    await writeFile(path.join(UPLOAD_DIR, safe), Buffer.from(await f.arrayBuffer()));
+    const buf = Buffer.from(await f.arrayBuffer());
+    if (!(await saveFile(`chat/${safe}`, buf))) {
+      return NextResponse.json({ ok: false, error: "Không lưu được file" }, { status: 500 });
+    }
 
     return NextResponse.json({
       ok: true,

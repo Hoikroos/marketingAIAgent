@@ -1,14 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { writeFile, mkdir, unlink } from "fs/promises";
-import path from "path";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { saveFile, deleteStoredFile } from "@/lib/storage";
 
 const ALLOWED = ["png", "jpg", "jpeg", "gif", "webp"];
 const MAX_BYTES = 5 * 1024 * 1024;
-const AVATAR_DIR = path.join(process.cwd(), "uploads", "avatars");
 
-/** POST — tải ảnh đại diện lên */
+/** Lấy đường dẫn tương đối (vd "avatars/avatar_x.jpg") từ URL "/api/files/avatars/avatar_x.jpg" */
+function relFromUrl(url: string): string | null {
+  const m = url.match(/\/api\/files\/(.+)$/);
+  return m ? m[1] : null;
+}
+
+/** POST — tải ảnh đại diện lên (lưu vào DATABASE, bền vững qua deploy/restart) */
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ ok: false, error: "Chưa đăng nhập" }, { status: 401 });
@@ -21,16 +25,18 @@ export async function POST(req: NextRequest) {
   if (!ALLOWED.includes(ext)) return NextResponse.json({ ok: false, error: "Chỉ chấp nhận PNG/JPG/GIF/WEBP" }, { status: 400 });
   if (f.size > MAX_BYTES) return NextResponse.json({ ok: false, error: "Ảnh tối đa 5MB" }, { status: 400 });
 
-  // Xoá avatar cũ (nếu có)
+  // Xoá avatar cũ (nếu có) — khỏi DB và ổ đĩa (file cũ)
   const cur = await prisma.user.findUnique({ where: { id: me }, select: { avatar: true } });
   if (cur?.avatar) {
-    const oldName = cur.avatar.split("/").pop();
-    if (oldName) { try { await unlink(path.join(AVATAR_DIR, oldName)); } catch {} }
+    const oldRel = relFromUrl(cur.avatar);
+    if (oldRel) await deleteStoredFile(oldRel);
   }
 
-  await mkdir(AVATAR_DIR, { recursive: true });
   const safe = `avatar_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
-  await writeFile(path.join(AVATAR_DIR, safe), Buffer.from(await f.arrayBuffer()));
+  const buf = Buffer.from(await f.arrayBuffer());
+  if (!(await saveFile(`avatars/${safe}`, buf))) {
+    return NextResponse.json({ ok: false, error: "Không lưu được ảnh" }, { status: 500 });
+  }
   const url = `/api/files/avatars/${safe}`;
 
   await prisma.user.update({ where: { id: me }, data: { avatar: url } });
@@ -45,8 +51,8 @@ export async function DELETE() {
 
   const cur = await prisma.user.findUnique({ where: { id: me }, select: { avatar: true } });
   if (cur?.avatar) {
-    const oldName = cur.avatar.split("/").pop();
-    if (oldName) { try { await unlink(path.join(AVATAR_DIR, oldName)); } catch {} }
+    const oldRel = relFromUrl(cur.avatar);
+    if (oldRel) await deleteStoredFile(oldRel);
   }
   await prisma.user.update({ where: { id: me }, data: { avatar: null } });
   return NextResponse.json({ ok: true });

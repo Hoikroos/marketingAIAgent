@@ -1,14 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { writeFile, mkdir, unlink } from "fs/promises";
-import path from "path";
 import { requireAdminApi } from "@/lib/guard";
 import { getBotLogoUrl, setBotLogoUrl } from "@/lib/brandLogo";
+import { saveFile, deleteStoredFile } from "@/lib/storage";
 
 const ALLOWED = ["png", "jpg", "jpeg", "gif", "webp", "svg"];
 const MAX_BYTES = 5 * 1024 * 1024; // 5MB
-const LOGO_DIR = path.join(process.cwd(), "uploads", "images");
 
-/** POST — Admin tải LOGO CHATBOT lên (hiển thị trong khung Trợ lý AI). */
+/** Lấy đường dẫn tương đối (vd "images/botlogo_x.svg") từ URL "/api/files/images/botlogo_x.svg" */
+function relFromUrl(url: string): string | null {
+  const m = url.match(/\/api\/files\/(.+)$/);
+  return m ? m[1] : null;
+}
+
+/** POST — Admin tải LOGO CHATBOT lên (hiển thị trong khung Trợ lý AI). Lưu vào DATABASE. */
 export async function POST(req: NextRequest) {
   const denied = await requireAdminApi();
   if (denied) return denied;
@@ -30,15 +34,15 @@ export async function POST(req: NextRequest) {
     // Xoá logo chatbot cũ (nếu có)
     const oldUrl = await getBotLogoUrl();
     if (oldUrl) {
-      const oldName = oldUrl.split("/").pop();
-      if (oldName) {
-        try { await unlink(path.join(LOGO_DIR, oldName)); } catch {}
-      }
+      const oldRel = relFromUrl(oldUrl);
+      if (oldRel) await deleteStoredFile(oldRel);
     }
 
-    await mkdir(LOGO_DIR, { recursive: true });
     const safe = `botlogo_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
-    await writeFile(path.join(LOGO_DIR, safe), Buffer.from(await f.arrayBuffer()));
+    const buf = Buffer.from(await f.arrayBuffer());
+    if (!(await saveFile(`images/${safe}`, buf))) {
+      return NextResponse.json({ ok: false, error: "Không lưu được ảnh" }, { status: 500 });
+    }
     const url = `/api/files/images/${safe}`;
     await setBotLogoUrl(url);
 
@@ -56,10 +60,8 @@ export async function DELETE() {
   try {
     const oldUrl = await getBotLogoUrl();
     if (oldUrl) {
-      const oldName = oldUrl.split("/").pop();
-      if (oldName) {
-        try { await unlink(path.join(LOGO_DIR, oldName)); } catch {}
-      }
+      const oldRel = relFromUrl(oldUrl);
+      if (oldRel) await deleteStoredFile(oldRel);
     }
     await setBotLogoUrl(null);
     return NextResponse.json({ ok: true });

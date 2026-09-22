@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
 import { getCurrentUser } from "@/lib/auth";
+import { saveFile } from "@/lib/storage";
 
 const ALLOWED = ["png", "jpg", "jpeg", "gif", "webp"];
 const MAX_BYTES = 10 * 1024 * 1024;
 
-/** POST — upload ảnh để gửi trong chat */
+/** POST — upload ảnh để gửi trong chat (lưu vào DATABASE, bền vững qua deploy/restart) */
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ ok: false, error: "Chưa đăng nhập" }, { status: 401 });
@@ -18,10 +17,11 @@ export async function POST(req: NextRequest) {
   if (!ALLOWED.includes(ext)) return NextResponse.json({ ok: false, error: "Chỉ chấp nhận PNG/JPG/GIF/WEBP" }, { status: 400 });
   if (f.size > MAX_BYTES) return NextResponse.json({ ok: false, error: "Ảnh tối đa 10MB" }, { status: 400 });
 
-  const dir = path.join(process.cwd(), "uploads", "chat");
-  await mkdir(dir, { recursive: true });
   const safe = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
-  await writeFile(path.join(dir, safe), Buffer.from(await f.arrayBuffer()));
+  const buf = Buffer.from(await f.arrayBuffer());
+  if (!(await saveFile(`chat/${safe}`, buf))) {
+    return NextResponse.json({ ok: false, error: "Không lưu được ảnh" }, { status: 500 });
+  }
 
   return NextResponse.json({ ok: true, url: `/api/files/chat/${safe}` });
 }
