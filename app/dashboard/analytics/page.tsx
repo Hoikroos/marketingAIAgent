@@ -92,7 +92,7 @@ export default async function AnalyticsPage({
       platform: pf,
       views: ct.reduce((s, c) => s + c.views, 0) + sm.reduce((s, m) => s + m.views, 0),
       engagement: sm.reduce((s, m) => s + m.engagement, 0),
-      contentLeads: ct.reduce((s, c) => s + c.leads, 0) + sm.reduce((s, m) => s + m.leads, 0),
+      contentLeads: ct.reduce((s, c) => s + c.leads, 0),
       leadCount: ld.length,
       won: ld.filter((l) => l.status === "Đã chốt").length,
     };

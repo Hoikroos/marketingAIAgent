@@ -14,7 +14,7 @@ export async function buildContext(): Promise<string> {
     prisma.lead.findMany({ select: { source: true, status: true, contacted: true, utmCampaign: true, createdAt: true } }),
     prisma.content.findMany({ orderBy: { createdAt: "desc" }, take: 100, select: { title: true, platform: true, type: true, views: true, leads: true, scheduledAt: true, createdAt: true } }),
     prisma.adCampaign.findMany({ select: { name: true, platform: true, status: true, spent: true, clicks: true, conversions: true, impressions: true, totalBudget: true } }),
-    prisma.socialMetric.findMany({ select: { platform: true, channel: true, followers: true, views: true, engagement: true, leads: true, createdAt: true } }),
+    prisma.socialMetric.findMany({ select: { platform: true, channel: true, followers: true, views: true, engagement: true, videosPosted: true, createdAt: true } }),
     prisma.trend.findMany({ orderBy: [{ score: "desc" }, { createdAt: "desc" }], take: 5, select: { title: true, platform: true, score: true } }),
     prisma.content.findMany({ where: { scheduledAt: { gte: now } }, orderBy: { scheduledAt: "asc" }, take: 5, select: { title: true, scheduledAt: true } }),
   ]);
@@ -50,7 +50,7 @@ export async function buildContext(): Promise<string> {
   const followers = social.reduce((s, m) => s + m.followers, 0);
   const views7 = (social as any[]).filter((m) => inRange(m.createdAt, d7)).reduce((s, m) => s + m.views, 0);
   const eng7 = (social as any[]).filter((m) => inRange(m.createdAt, d7)).reduce((s, m) => s + m.engagement, 0);
-  const leadsFromSocial7 = (social as any[]).filter((m) => inRange(m.createdAt, d7)).reduce((s, m) => s + m.leads, 0);
+  const videosPosted7 = (social as any[]).filter((m) => inRange(m.createdAt, d7)).reduce((s, m) => s + m.videosPosted, 0);
 
   const trendStr = trends.map((t) => `${t.title} [${t.platform}, độ nóng ${t.score}]`).join(" | ") || "chưa có";
   const upcomingStr = upcoming.map((c) => `"${c.title}" (${c.scheduledAt ? new Date(c.scheduledAt).toLocaleString("vi-VN") : "?"})`).join(" | ") || "không có";
@@ -62,7 +62,7 @@ export async function buildContext(): Promise<string> {
     `CONTENT: ${contents.length} tổng, ${newContents7} tạo mới trong 7 ngày qua; top hiệu quả: ${topContents}`,
     `LỊCH SẮP TỚI: ${upcomingStr}`,
     `ADS: chi tổng ${Math.round(spend)}, ${clicks} clicks, ${conv} conversions${cpl ? `, CPL TB ${cpl}` : ""}; chiến dịch: ${adLines}`,
-    `MXH: ${followers} followers; 7 ngày qua: ${views7} views, ${eng7} tương tác, ${leadsFromSocial7} leads`,
+    `MXH: ${followers} followers; 7 ngày qua: ${views7} views, ${eng7} tương tác, ${videosPosted7} video đã đăng`,
     `TREND BĐS hot: ${trendStr}`,
   ].join("\n");
 }

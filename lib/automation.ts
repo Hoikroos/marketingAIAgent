@@ -148,14 +148,14 @@ export async function runAllJobs(): Promise<AutomationResults> {
         prisma.lead.count({ where: { createdAt: { gte: weekStart } } }),
         prisma.content.count({ where: { createdAt: { gte: weekStart } } }),
         prisma.adCampaign.aggregate({ _sum: { spent: true, clicks: true } }),
-        prisma.socialMetric.aggregate({ _sum: { views: true, leads: true } }),
+        prisma.socialMetric.aggregate({ _sum: { views: true, videosPosted: true } }),
       ]);
       await prisma.notification.create({
         data: {
           userId: broadcastId,
           type: "weekly",
           title: "📊 Báo cáo tuần Marketing",
-          content: `7 ngày qua: ${newLeads} leads mới · ${newContents} nội dung mới · Ads chi ${Math.round(adAgg._sum.spent || 0).toLocaleString("vi-VN")} / ${Math.round(adAgg._sum.clicks || 0).toLocaleString("vi-VN")} clicks · MXH: ${Math.round(socialAgg._sum.views || 0).toLocaleString("vi-VN")} views, ${socialAgg._sum.leads || 0} leads`,
+          content: `7 ngày qua: ${newLeads} leads mới · ${newContents} nội dung mới · Ads chi ${Math.round(adAgg._sum.spent || 0).toLocaleString("vi-VN")} / ${Math.round(adAgg._sum.clicks || 0).toLocaleString("vi-VN")} clicks · MXH: ${Math.round(socialAgg._sum.views || 0).toLocaleString("vi-VN")} views, ${socialAgg._sum.videosPosted || 0} video đã đăng`,
           link: "/dashboard/reports",
         },
       });

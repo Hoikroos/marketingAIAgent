@@ -150,7 +150,7 @@ Tất cả model dùng `id Int @id @default(autoincrement())`. Ngày mặc đị
 | **Task** | title, assignee?, status (default "Đang thực hiện"), priority (default "Trung bình"), deadline?, ownerId? | owner |
 | **Workflow** | name, description?, status (default "Running"), lastRun?, executions Int | — |
 | **Insight** | type, title, description, priority (default "medium") | — |
-| **SocialMetric** | platform, date, views, engagement, leads | — |
+| **SocialMetric** | platform, channel, followers, views, engagement, **videosPosted** (số video đã đăng trong tuần), weekLabel, note | owner (User) |
 | **Setting** | companyName "Tân Phú Land", brandColor "#6d36e8", slogan, aiModel, n8nWebhook, openaiKey, dbName, dbServer, notifyTrend/notifyContent/notifyViral Boolean | 1 bản ghi duy nhất |
 | **Notification** | userId, type (default "lead"), title, body?, refId?, read Boolean (default false), createdAt | user (User, onDelete Cascade) |
 | **Report** | title, period ("week"\|"month"), periodLabel, employeeId, status ("Chưa nộp"\|"Đã nộp"), fileName?, filePath?, submittedAt?, createdById? | employee (User, NoAction), createdBy (User, SetNull) |
@@ -185,7 +185,7 @@ Tất cả model dùng `id Int @id @default(autoincrement())`. Ngày mặc đị
 | `getTasks(limit=50)` / `getInsights(limit=20)` | task / insight orderBy desc |
 | `getSettings()` | 1 setting (tự tạo nếu chưa có) |
 | `getSocialMetrics(days=7)` | socialMetric orderBy date asc |
-| `getPlatformSummary()` | gộp views/engagement/leads theo platform |
+| `getPlatformSummary()` | gộp views/engagement/videosPosted theo platform |
 | `getDailySeries()` | gộp theo ngày (dd/MM) cho biểu đồ |
 | `getOverviewStats()` | contentCount, totalViews, totalEngagement, totalLeads, campaignCount, conversionRate |
 | `searchAll(q)` | { projects, leads, contents } |

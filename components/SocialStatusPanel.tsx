@@ -13,7 +13,7 @@ type Metric = {
   followers: number;
   views: number;
   engagement: number;
-  leads: number;
+  videosPosted: number;
   note: string | null;
   weekLabel: string;
   createdAt?: string;
@@ -31,7 +31,7 @@ type WeekComparison = {
   followers: number;
   views: number;
   engagement: number;
-  leads: number;
+  videosPosted: number;
 };
 
 function formatNumber(num: number): string {
@@ -115,7 +115,7 @@ export default function SocialStatusPanel() {
   const [followers, setFollowers] = useState("0");
   const [views, setViews] = useState("0");
   const [engagement, setEngagement] = useState("0");
-  const [leads, setLeads] = useState("0");
+  const [videosPosted, setVideosPosted] = useState("0");
   const [weekLabel, setWeekLabel] = useState(getWeekLabel(new Date()));
   const [weekDate, setWeekDate] = useState(() => toDateInputStr(new Date()));
   const [note, setNote] = useState("");
@@ -166,7 +166,7 @@ export default function SocialStatusPanel() {
         followers: weekMetrics.reduce((sum, m) => sum + m.followers, 0),
         views: weekMetrics.reduce((sum, m) => sum + m.views, 0),
         engagement: weekMetrics.reduce((sum, m) => sum + m.engagement, 0),
-        leads: weekMetrics.reduce((sum, m) => sum + m.leads, 0),
+        videosPosted: weekMetrics.reduce((sum, m) => sum + m.videosPosted, 0),
       });
     }
     return comparison;
@@ -187,7 +187,7 @@ export default function SocialStatusPanel() {
             followers: weekMetrics.reduce((s, m) => s + m.followers, 0),
             views: weekMetrics.reduce((s, m) => s + m.views, 0),
             engagement: weekMetrics.reduce((s, m) => s + m.engagement, 0),
-            leads: weekMetrics.reduce((s, m) => s + m.leads, 0),
+            videosPosted: weekMetrics.reduce((s, m) => s + m.videosPosted, 0),
           };
         }),
       };
@@ -211,14 +211,14 @@ export default function SocialStatusPanel() {
   const monthlyStats = useMemo(() => {
     const monthMetrics = metrics.filter((m) => monthWeeks.includes(m.weekLabel));
 
-    const byChannel = new Map<string, { followers: number; views: number; engagement: number; leads: number }>();
+    const byChannel = new Map<string, { followers: number; views: number; engagement: number; videosPosted: number }>();
     for (const m of monthMetrics) {
-      const existing = byChannel.get(m.channel) || { followers: 0, views: 0, engagement: 0, leads: 0 };
+      const existing = byChannel.get(m.channel) || { followers: 0, views: 0, engagement: 0, videosPosted: 0 };
       byChannel.set(m.channel, {
         followers: existing.followers + m.followers,
         views: existing.views + m.views,
         engagement: existing.engagement + m.engagement,
-        leads: existing.leads + m.leads,
+        videosPosted: existing.videosPosted + m.videosPosted,
       });
     }
 
@@ -252,7 +252,7 @@ export default function SocialStatusPanel() {
       { header: "Followers", key: "followers", width: 15 },
       { header: "Views", key: "views", width: 15 },
       { header: "Tương tác", key: "engagement", width: 15 },
-      { header: "Leads", key: "leads", width: 15 },
+      { header: "Video đã đăng", key: "videosPosted", width: 15 },
       { header: "Tăng trưởng Views", key: "growth", width: 18 },
     ];
 
@@ -274,7 +274,7 @@ export default function SocialStatusPanel() {
         followers: week.followers,
         views: week.views,
         engagement: week.engagement,
-        leads: week.leads,
+        videosPosted: week.videosPosted,
         growth: prevWeek ? `${growth >= 0 ? "+" : ""}${growth.toFixed(1)}%` : "-",
       });
 
@@ -307,14 +307,14 @@ export default function SocialStatusPanel() {
       const totalFollowers = weekComparison.reduce((s, w) => s + w.followers, 0);
       const totalViews = weekComparison.reduce((s, w) => s + w.views, 0);
       const totalEngagement = weekComparison.reduce((s, w) => s + w.engagement, 0);
-      const totalLeads = weekComparison.reduce((s, w) => s + w.leads, 0);
+      const totalVideosPosted = weekComparison.reduce((s, w) => s + w.videosPosted, 0);
 
       const totalRow = weekSheet.addRow({
         weekLabel: "TỔNG",
         followers: totalFollowers,
         views: totalViews,
         engagement: totalEngagement,
-        leads: totalLeads,
+        videosPosted: totalVideosPosted,
         growth: "",
       });
       totalRow.font = { bold: true };
@@ -333,7 +333,7 @@ export default function SocialStatusPanel() {
       { header: "Followers", key: "followers", width: 15 },
       { header: "Views", key: "views", width: 15 },
       { header: "Tương tác", key: "engagement", width: 15 },
-      { header: "Leads", key: "leads", width: 15 },
+      { header: "Video đã đăng", key: "videosPosted", width: 15 },
     ];
 
     // Style header
@@ -366,7 +366,7 @@ export default function SocialStatusPanel() {
         followers: monthlyStats.reduce((s, m) => s + m.followers, 0),
         views: monthlyStats.reduce((s, m) => s + m.views, 0),
         engagement: monthlyStats.reduce((s, m) => s + m.engagement, 0),
-        leads: monthlyStats.reduce((s, m) => s + m.leads, 0),
+        videosPosted: monthlyStats.reduce((s, m) => s + m.videosPosted, 0),
       });
       totalRow.font = { bold: true };
       totalRow.fill = {
@@ -385,7 +385,7 @@ export default function SocialStatusPanel() {
       { header: "Followers", key: "followers", width: 15 },
       { header: "Views", key: "views", width: 15 },
       { header: "Tương tác", key: "engagement", width: 15 },
-      { header: "Leads", key: "leads", width: 15 },
+      { header: "Video đã đăng", key: "videosPosted", width: 15 },
       { header: "Tuần", key: "weekLabel", width: 15 },
       { header: "Ghi chú", key: "note", width: 30 },
     ];
@@ -407,7 +407,7 @@ export default function SocialStatusPanel() {
         followers: m.followers,
         views: m.views,
         engagement: m.engagement,
-        leads: m.leads,
+        videosPosted: m.videosPosted,
         weekLabel: m.weekLabel,
         note: m.note || "",
       });
@@ -442,7 +442,7 @@ export default function SocialStatusPanel() {
     e.preventDefault();
     if (!channel) return;
 
-    const body = { platform, channel, followers, views, engagement, leads, weekLabel, note };
+    const body = { platform, channel, followers, views, engagement, videosPosted, weekLabel, note };
     const url = editing ? `/api/social` : "/api/social";
     const method = editing ? "PATCH" : "POST";
     if (editing) (body as any).id = editing.id;
@@ -470,7 +470,7 @@ export default function SocialStatusPanel() {
     setFollowers("0");
     setViews("0");
     setEngagement("0");
-    setLeads("0");
+    setVideosPosted("0");
     setWeekLabel(getWeekLabel(new Date()));
     setWeekDate(toDateInputStr(new Date()));
     setNote("");
@@ -483,7 +483,7 @@ export default function SocialStatusPanel() {
     setFollowers(m.followers.toString());
     setViews(m.views.toString());
     setEngagement(m.engagement.toString());
-    setLeads(m.leads.toString());
+    setVideosPosted(m.videosPosted.toString());
     setWeekLabel(m.weekLabel);
     setWeekDate(weekLabelToDate(m.weekLabel));
     setNote(m.note || "");
@@ -644,7 +644,7 @@ export default function SocialStatusPanel() {
                 { label: "Followers", current: currentWeekData?.followers || 0, previous: previousWeekData?.followers || 0 },
                 { label: "Views", current: currentWeekData?.views || 0, previous: previousWeekData?.views || 0 },
                 { label: "Tương tác", current: currentWeekData?.engagement || 0, previous: previousWeekData?.engagement || 0 },
-                { label: "Leads", current: currentWeekData?.leads || 0, previous: previousWeekData?.leads || 0 },
+                { label: "Video đã đăng", current: currentWeekData?.videosPosted || 0, previous: previousWeekData?.videosPosted || 0 },
               ].map((kpi) => {
                 const growth = calculateGrowth(kpi.current, kpi.previous);
                 const isPositive = growth >= 0;
@@ -678,7 +678,7 @@ export default function SocialStatusPanel() {
                   <th className="text-right text-xs text-slate-400 font-medium px-4 py-3">Followers</th>
                   <th className="text-right text-xs text-slate-400 font-medium px-4 py-3">Views</th>
                   <th className="text-right text-xs text-slate-400 font-medium px-4 py-3">Tương tác</th>
-                  <th className="text-right text-xs text-slate-400 font-medium px-4 py-3">Leads</th>
+                  <th className="text-right text-xs text-slate-400 font-medium px-4 py-3">Video đã đăng</th>
                   <th className="text-right text-xs text-slate-400 font-medium px-4 py-3">Tăng trưởng</th>
                 </tr>
               </thead>
@@ -696,7 +696,7 @@ export default function SocialStatusPanel() {
                       </tr>
                       {weeks.map((w, idx) => {
                         const prevWeek = weeks[idx + 1];
-                        const hasData = w.views > 0 || w.followers > 0 || w.engagement > 0 || w.leads > 0;
+                        const hasData = w.views > 0 || w.followers > 0 || w.engagement > 0 || w.videosPosted > 0;
                         const growth =
                           prevWeek && (prevWeek.views > 0 || w.views > 0)
                             ? calculateGrowth(w.views, prevWeek.views)
@@ -708,7 +708,7 @@ export default function SocialStatusPanel() {
                             <td className="px-4 py-3 text-right text-sm">{formatNumber(w.followers)}</td>
                             <td className="px-4 py-3 text-right text-sm">{formatNumber(w.views)}</td>
                             <td className="px-4 py-3 text-right text-sm">{formatNumber(w.engagement)}</td>
-                            <td className="px-4 py-3 text-right text-sm">{formatNumber(w.leads)}</td>
+                            <td className="px-4 py-3 text-right text-sm">{formatNumber(w.videosPosted)}</td>
                             <td className="px-4 py-3 text-right">
                               {growth !== null ? (
                                 <span className={`text-xs font-medium ${isPositive ? "text-emerald-400" : "text-rose-400"}`}>
@@ -767,7 +767,7 @@ export default function SocialStatusPanel() {
                   <th className="text-right text-xs text-slate-400 font-medium px-4 py-3">Followers</th>
                   <th className="text-right text-xs text-slate-400 font-medium px-4 py-3">Views</th>
                   <th className="text-right text-xs text-slate-400 font-medium px-4 py-3">Tương tác</th>
-                  <th className="text-right text-xs text-slate-400 font-medium px-4 py-3">Leads</th>
+                  <th className="text-right text-xs text-slate-400 font-medium px-4 py-3">Video đã đăng</th>
                 </tr>
               </thead>
               <tbody>
@@ -777,7 +777,7 @@ export default function SocialStatusPanel() {
                     <td className="px-4 py-3 text-right text-sm">{formatNumber(stat.followers)}</td>
                     <td className="px-4 py-3 text-right text-sm">{formatNumber(stat.views)}</td>
                     <td className="px-4 py-3 text-right text-sm">{formatNumber(stat.engagement)}</td>
-                    <td className="px-4 py-3 text-right text-sm">{formatNumber(stat.leads)}</td>
+                    <td className="px-4 py-3 text-right text-sm">{formatNumber(stat.videosPosted)}</td>
                   </tr>
                 ))}
                 {monthlyStats.length === 0 && (
@@ -806,8 +806,8 @@ export default function SocialStatusPanel() {
                   <div className="font-bold">{formatNumber(monthlyStats.reduce((s, m) => s + m.engagement, 0))}</div>
                 </div>
                 <div>
-                  <div className="text-xs text-slate-400">Tổng Leads</div>
-                  <div className="font-bold">{formatNumber(monthlyStats.reduce((s, m) => s + m.leads, 0))}</div>
+                  <div className="text-xs text-slate-400">Tổng Video đã đăng</div>
+                  <div className="font-bold">{formatNumber(monthlyStats.reduce((s, m) => s + m.videosPosted, 0))}</div>
                 </div>
               </div>
             </div>
@@ -857,8 +857,8 @@ export default function SocialStatusPanel() {
                   <input type="number" value={engagement} onChange={(e) => setEngagement(e.target.value)} className="input" />
                 </div>
                 <div>
-                  <label className="block text-sm text-slate-400 mb-1">Leads</label>
-                  <input type="number" value={leads} onChange={(e) => setLeads(e.target.value)} className="input" />
+                  <label className="block text-sm text-slate-400 mb-1">Video đã đăng trong tuần</label>
+                  <input type="number" value={videosPosted} onChange={(e) => setVideosPosted(e.target.value)} className="input" />
                 </div>
               </div>
               <div>
@@ -912,7 +912,7 @@ export default function SocialStatusPanel() {
                 <th className="text-right text-xs text-slate-400 font-medium px-4 py-3">Followers</th>
                 <th className="text-right text-xs text-slate-400 font-medium px-4 py-3">Views</th>
                 <th className="text-right text-xs text-slate-400 font-medium px-4 py-3">Tương tác</th>
-                <th className="text-right text-xs text-slate-400 font-medium px-4 py-3">Leads</th>
+                <th className="text-right text-xs text-slate-400 font-medium px-4 py-3">Video đã đăng</th>
                 <th className="text-left text-xs text-slate-400 font-medium px-4 py-3">Tuần</th>
                 {(canUpdate || canDelete) && <th className="text-right text-xs text-slate-400 font-medium px-4 py-3">Thao tác</th>}
               </tr>
@@ -930,7 +930,7 @@ export default function SocialStatusPanel() {
                   <td className="px-4 py-3 text-right text-sm">{formatNumber(m.followers)}</td>
                   <td className="px-4 py-3 text-right text-sm">{formatNumber(m.views)}</td>
                   <td className="px-4 py-3 text-right text-sm">{formatNumber(m.engagement)}</td>
-                  <td className="px-4 py-3 text-right text-sm">{formatNumber(m.leads)}</td>
+                  <td className="px-4 py-3 text-right text-sm">{formatNumber(m.videosPosted)}</td>
                   <td className="px-4 py-3 text-xs text-slate-400">{m.weekLabel}</td>
                   {(canUpdate || canDelete) && (
                     <td className="px-4 py-3 text-right">

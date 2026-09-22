@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { platform, channel, followers, views, engagement, leads, weekLabel, note } = body;
+    const { platform, channel, followers, views, engagement, videosPosted, weekLabel, note } = body;
 
     if (!platform || !channel || !weekLabel) {
       return NextResponse.json({ error: "Thiếu thông tin bắt buộc" }, { status: 400 });
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
         followers: Number(followers) || 0,
         views: Number(views) || 0,
         engagement: Number(engagement) || 0,
-        leads: Number(leads) || 0,
+        videosPosted: Number(videosPosted) || 0,
         weekLabel,
         note: note || null,
         ownerId: Number(user?.id),
@@ -72,7 +72,7 @@ export async function PATCH(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { id, followers, views, engagement, leads, note } = body;
+    const { id, followers, views, engagement, videosPosted, note } = body;
 
     if (!id) return NextResponse.json({ error: "Thiếu id" }, { status: 400 });
 
@@ -87,7 +87,7 @@ export async function PATCH(req: NextRequest) {
     if (followers !== undefined) data.followers = Number(followers);
     if (views !== undefined) data.views = Number(views);
     if (engagement !== undefined) data.engagement = Number(engagement);
-    if (leads !== undefined) data.leads = Number(leads);
+    if (videosPosted !== undefined) data.videosPosted = Number(videosPosted);
     if (note !== undefined) data.note = note;
 
     const updated = await prisma.socialMetric.update({

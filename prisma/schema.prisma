@@ -163,7 +163,7 @@ model SocialMetric {
   followers   Int      @default(0)
   views       Int      @default(0)
   engagement  Int      @default(0)
-  leads       Int      @default(0)
+  videosPosted Int     @default(0) // Số video đã đăng trong tuần
   note        String?
   weekLabel   String   // "YYYY-Wxx" vd "2026-W35"
   ownerId     Int?     // Người tạo số liệu
