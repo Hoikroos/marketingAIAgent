@@ -35,7 +35,6 @@ export type WorkStatsData = {
 };
 
 type Metrics = {
-  activities: number; // tổng thao tác trên hệ thống (ActivityLog)
   tasksDone: number; // công việc "Đã hoàn thành"
   contentsPublished: number; // nội dung tạo mới trong kỳ
   leadsWon: number; // lead "Đã chốt"
@@ -46,12 +45,12 @@ type Metrics = {
 };
 
 const ZERO: Metrics = {
-  activities: 0, tasksDone: 0, contentsPublished: 0, leadsWon: 0,
+  tasksDone: 0, contentsPublished: 0, leadsWon: 0,
   reportsSubmitted: 0, dailyReports: 0, socialEntries: 0, adsCreated: 0,
 };
 
 function metricsTotal(m: Metrics): number {
-  return m.activities + m.tasksDone + m.contentsPublished + m.leadsWon +
+  return m.tasksDone + m.contentsPublished + m.leadsWon +
     m.reportsSubmitted + m.dailyReports + m.socialEntries + m.adsCreated;
 }
 
@@ -93,7 +92,6 @@ export default function WorkStatsBoard({ data }: { data: WorkStatsData }) {
       map.get(k)![field] += 1;
     };
 
-    for (const l of data.logs) bump(periodKey(new Date(l.createdAt), gran), "activities");
     for (const t of data.tasks) {
       if (t.status === "Đã hoàn thành") bump(periodKey(new Date(t.createdAt), gran), "tasksDone");
     }
@@ -176,7 +174,6 @@ export default function WorkStatsBoard({ data }: { data: WorkStatsData }) {
     { label: "Nhật ký công việc", cur: curMetrics.dailyReports, prev: prevMetrics.dailyReports },
     { label: "Lần nhập số liệu MXH", cur: curMetrics.socialEntries, prev: prevMetrics.socialEntries },
     { label: "Chiến dịch ads tạo mới", cur: curMetrics.adsCreated, prev: prevMetrics.adsCreated },
-    { label: "Tổng thao tác hệ thống", cur: curMetrics.activities, prev: prevMetrics.activities },
   ];
 
   return (
@@ -230,7 +227,6 @@ export default function WorkStatsBoard({ data }: { data: WorkStatsData }) {
             <YAxis stroke="#71839a" fontSize={11} allowDecimals={false} />
             <Tooltip contentStyle={tooltipStyle} />
             <Legend wrapperStyle={{ fontSize: 11 }} />
-            <Bar dataKey="activities" name="Thao tác hệ thống" fill="#7c5cff" radius={[4, 4, 0, 0]} />
             <Bar dataKey="tasksDone" name="Công việc hoàn thành" fill="#34d399" radius={[4, 4, 0, 0]} />
             <Bar dataKey="contentsPublished" name="Nội dung tạo mới" fill="#38bdf8" radius={[4, 4, 0, 0]} />
           </BarChart>
