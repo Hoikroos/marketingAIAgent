@@ -71,12 +71,6 @@ export async function getActivityLogs(limit = 200) {
     }
 }
 
-export async function getSettings() {
-    let s = await prisma.setting.findFirst();
-    if (!s) s = await prisma.setting.create({ data: { key: "main", value: "{}" } });
-    return s;
-}
-
 export async function getOverviewStats() {
   const [contents, leadCount] = await Promise.all([
     prisma.content.findMany({ select: { views: true, leads: true } }),
@@ -92,14 +86,4 @@ export async function getOverviewStats() {
     conversionRate,
     contentLeads: cLeads,
   };
-}
-
-export async function searchAll(q: string) {
-    if (!q || q.trim().length === 0) return { leads: [], contents: [] };
-    const query = q.trim();
-    const [leads, contents] = await Promise.all([
-        prisma.lead.findMany({ where: { OR: [{ name: { contains: query } }, { phone: { contains: query } }] }, take: 5 }),
-        prisma.content.findMany({ where: { title: { contains: query } }, take: 5 }),
-    ]);
-    return { leads, contents };
 }

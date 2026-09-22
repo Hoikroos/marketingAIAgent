@@ -906,7 +906,7 @@ export default function AssistantChat() {
             </div>
           )}
           <div className="text-[9px] text-slate-500 mt-1 text-center">
-            Enter để gửi · Shift + Enter để xuống dòng · AI trả lời dựa trên số liệu thật, mỗi câu tốn một ít token
+            Enter để gửi · Shift + Enter để xuống dòng · AI trả lời dựa trên số liệu thật
           </div>
           </>
           )}

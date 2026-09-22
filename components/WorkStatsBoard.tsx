@@ -252,7 +252,7 @@ export default function WorkStatsBoard({ data }: { data: WorkStatsData }) {
       <div className="card p-5">
         <div className="flex flex-wrap items-center gap-2 mb-3">
           <Lightbulb size={15} className="text-amber-400" />
-          <div className="font-extrabold text-sm">TÓM TẮT CHO QUẢN LÝ</div>
+          <div className="font-extrabold text-sm">TÓM TẮT CÔNG VIỆC</div>
           <span className={`ml-auto text-[11px] font-bold px-2.5 py-1 rounded-lg ${insight.trendUp ? "bg-emerald-500/15 text-emerald-400" : "bg-rose-500/15 text-rose-400"}`}>
             {insight.trend}
           </span>

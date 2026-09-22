@@ -184,12 +184,7 @@ Tất cả model dùng `id Int @id @default(autoincrement())`. Ngày mặc đị
 | `getProject(id)` | 1 project include contents+campaigns+leads |
 | `getWorkflows(limit=20)` | workflow orderBy id desc |
 | `getTasks(limit=50)` / `getInsights(limit=20)` | task / insight orderBy desc |
-| `getSettings()` | 1 setting (tự tạo nếu chưa có) |
-| `getSocialMetrics(days=7)` | socialMetric orderBy date asc |
-| `getPlatformSummary()` | gộp views/engagement/videosPosted theo platform |
-| `getDailySeries()` | gộp theo ngày (dd/MM) cho biểu đồ |
 | `getOverviewStats()` | contentCount, totalViews, totalEngagement, totalLeads, campaignCount, conversionRate |
-| `searchAll(q)` | { projects, leads, contents } |
 
 - `lib/prisma.ts` = PrismaClient singleton qua `globalThis` (chống leak khi HMR dev).
 
@@ -308,8 +303,7 @@ Tất cả model dùng `id Int @id @default(autoincrement())`. Ngày mặc đị
 | `Modal` | `open, onClose, title?, children` | Modal; ESC/backdrop đóng |
 
 ### Charts (`components/charts.tsx`)
-- `PerformanceChart({data})` — LineChart (views/eng/leads); `ReportChart({data})` — BarChart.
-- **Có `FALLBACK` (số liệu giả) khi data rỗng** — cẩn thận khi báo cáo trống.
+- `ReportChart({data})` — BarChart (views/eng). **Có `FALLBACK` (số liệu giả) khi data rỗng** — cẩn thận khi báo cáo trống.
 
 ---
 
@@ -347,26 +341,31 @@ Mỗi trang = async server component dùng `PageShell` (trừ Dashboard dùng `D
 
 | Route | Title | Lấy data từ | Client component |
 |---|---|---|---|
-| `/dashboard` | Dashboard | getTrends(5), getContents(4), getCampaigns(5), getWorkflows(4), getOverviewStats | PerformanceChart |
+| `/dashboard` | Dashboard | getContents, getTopContents, getUpcomingContents, getOverviewStats, getLeads, prisma (ads/social/trends/tasks) | ReportChart |
 | `/dashboard/trends` | Trend Radar | getTrends(50) | TrendsBoard |
 | `/dashboard/content-studio` | AI Content Studio | (client tự fetch) | gọi /api/generate-content, /api/contents |
 | `/dashboard/content-studio/new` | | — | CreateContentForm |
 | `/dashboard/calendar` | Content Calendar | getContents(200) → scheduled | CalendarBoard |
-| `/dashboard/content` | Content Manager | getContents(200), getProjects(100) | CreateContentModal, ContentTable |
-| `/dashboard/campaigns` (+/new) | Campaigns | getCampaigns(50), getProjects(100) | CreateCampaignModal, CampaignStatusToggle |
-| `/dashboard/products` (+/[id], +/new) | Sản phẩm / Dự án | getProjects(100); [id]: getProject | CreateProjectModal, DeleteProjectButton |
-| `/dashboard/analytics` | Social Analytics | getOverviewStats, getPlatformSummary, getDailySeries | PerformanceChart |
-| `/dashboard/leads` (+/new) | Leads | getLeads(200), getProjects(100) | CreateLeadModal, LeadsTable |
-| `/dashboard/insights` | AI Insights | getInsights(30), getTrends(3), getProjects(2) | — |
-| `/dashboard/team` | Team Collaboration | getTasks(100) | CreateTaskModal, TaskStatusBadge |
-| `/dashboard/workflow` (+/new) | Workflow (n8n) | getWorkflows(50) | CreateWorkflowModal, WorkflowCard, RunAllWorkflowsButton |
+| `/dashboard/content` | Content Manager | getContents(200) | CreateContentModal, ContentTable |
+| `/dashboard/analytics` | Social Analytics | prisma trực tiếp (contents/ads/social/leads) | — |
+| `/dashboard/leads` (+/new) | Leads | getLeads(200), getStaffUsers | CreateLeadModal, LeadsTable, ExportLeadsButton |
+| `/dashboard/team` | Team Collaboration | getTasks, getAssigneeUsers | CreateTaskModal, TaskStatusSelect, EditTaskModal, TeamTaskFocus, UrlFilters |
+| `/dashboard/ads` | Chạy quảng cáo | prisma.adCampaign | AdsClient (AdsStats, AdCampaignForm, AdCampaignTable) |
+| `/dashboard/social` | Trạng thái MXH | (client fetch /api/social) | SocialStatusPanel |
 | `/dashboard/work-stats` | Thống kê công việc (tuần/tháng/quý/năm, so sánh từng kỳ + theo chức năng/người) | ActivityLog, Task, Content, Lead, Report, DailyReport, SocialMetric, AdCampaign | WorkStatsBoard |
-| `/dashboard/reports` | Báo cáo | getOverviewStats, getDailySeries | ReportsControls (xuất CSV) |
-| `/dashboard/settings` | Cài đặt hệ thống | (client fetch /api/settings) | Toggle, Field |
+| `/dashboard/work-reports` | Báo cáo công việc | prisma.report | ReportsWorkManager |
+| `/dashboard/daily-reports` | Nhật ký công việc | prisma.dailyReport | DailyReportManager |
+| `/dashboard/chat` | Trò chuyện nhóm | prisma (friendship/group/message) | ChatPanel |
+| `/dashboard/assistant` | Trợ lý AI | (client fetch /api/assistant) | AssistantChat |
+| `/dashboard/tools/utm` | UTM Builder | — | UtmBuilder |
+| `/dashboard/activity` | Lịch sử hoạt động | getActivityLogs(200) | ActivityLogTable |
+| `/dashboard/reports` | Báo cáo | getOverviewStats | ReportsControls (xuất CSV), Kpi |
+| `/dashboard/settings` | Cài đặt hệ thống | (client fetch /api/settings) | Toggle, Field, SocialChannelsManager |
+| `/dashboard/users` | Quản lý tài khoản | (client fetch /api/users) | UsersManager |
 | `/dashboard/profile` | Hồ sơ cá nhân | (client fetch /api/profile) | ProfileManager (tab Hồ sơ / Đổi mật khẩu) |
 
 ### Navigation (sidebar.tsx)
-Dashboard, Trend Radar (HOT), AI Content Studio, Content Calendar, Content Manager, Campaigns, Sản phẩm/Dự án, Social Analytics, Leads (NEW), AI Insights, Team Collaboration, Workflow (n8n), Báo cáo, Cài đặt hệ thống.
+Tổng quan: Dashboard · Nội dung & AI: Studio nội dung AI, Lịch nội dung, Quản lý nội dung, Xu hướng BĐS, Trợ lý AI · Kinh doanh: Khách hàng tiềm năng, Chạy quảng cáo, Mạng xã hội · Vận hành: Cộng tác nhóm, Báo cáo, Thống kê công việc, Phân tích Marketing, UTM Builder, Báo cáo công việc, Nhật ký công việc · Quản trị (admin): Cài đặt hệ thống, Quản lý tài khoản, Lịch sử hoạt động.
 
 ### Lưu ý header.tsx
 - Ô search gọi `/api/search?q=` (debounce 300ms). Nút "Tạo content" → `/dashboard/content-studio`.
