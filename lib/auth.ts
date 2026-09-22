@@ -13,9 +13,9 @@ import {
 export const authOptions: NextAuthOptions = {
   session: {
     strategy: "jwt",
-    // Phiên tự hết hạn sau 12 giờ (trước đây mặc định 30 ngày) — giảm rủi ro nếu cookie lộ
-    maxAge: 12 * 60 * 60,
-    // Gia hạn phiên mỗi 1 giờ nếu user vẫn hoạt động
+    // Phiên tự hết hạn sau 30 ngày — đăng nhập lại mỗi tháng (tránh phải đăng nhập lại mỗi sáng)
+    maxAge: 30 * 24 * 60 * 60,
+    // Gia hạn phiên mỗi 1 giờ nếu user vẫn hoạt động (slide 30 ngày kể từ lần hoạt động gần nhất)
     updateAge: 60 * 60,
   },
   pages: { signIn: "/login" },
