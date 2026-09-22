@@ -1,70 +1,61 @@
-# AI_CONTEXT.md — Bản đồ toàn bộ dự án AI Real Estate Marketing
+# AI_CONTEXT.md — Tài liệu dự án dành cho AI
 
-> **Mục đích file này:** Tài liệu DUY NHẤT mô tả toàn bộ source code, kiến trúc, data model, API, UI conventions.
-> Khi dùng AI khác (fix bug, thêm tính năng, refactor), hãy đọc file này TRƯỚC để có đủ bối cảnh
-> mà **không phải mở lại từng file**, tiết kiệm token và tránh hiểu sai.
+> **Dành cho AI (bất kỳ AI nào):** Đây là tài liệu DUY NHẤT mô tả toàn bộ dự án — kiến trúc, data model,
+> API, quy ước code. Hãy ĐỌC FILE NÀY TRƯỚC khi sửa/thêm code để có đủ bối cảnh, không phải mở từng file.
 >
-> File này tự sinh từ việc đọc toàn bộ source. Nếu source thay đổi, hãy cập nhật lại file này.
+> **An toàn bảo mật:** File này KHÔNG chứa mật khẩu, API key hay connection string. Tất cả bí mật nằm
+> trong biến môi trường (Render Environment / `.env` — không được commit). Việc file này public trên
+> GitHub không giúp ai đăng nhập trái phép hay gọi API vượt qua phân quyền.
 
 ---
 
-## 0. PROMPT MẪU — dán cho AI khác khi muốn nó fix/viết code
+## 0. PROMPT MẪU — dán cho AI khi cần sửa/viết code
 
 ```
-Bạn là kỹ sư làm việc trên dự án "AI Real Estate Marketing" (Next.js App Router + TypeScript + Prisma + SQLite).
-Hãy đọc file AI_CONTEXT.md ở thư mục gốc để nắm TOÀN BỘ kiến trúc, data model, API, UI conventions
-TRƯỚC khi trả lời. Chỉ mở thêm file cụ thể nếu bạn thực sự cần chi tiết vượt ngoài tài liệu này.
+Bạn là kỹ sư làm việc trên dự án "AI Real Estate Marketing" (Next.js 14 App Router + TypeScript
++ Prisma + PostgreSQL). Đọc file AI_CONTEXT.md ở thư mục gốc trước khi trả lời.
 
-Quy tắc khi fix/viết code:
-- Tuân thủ đúng conventions trong AI_CONTEXT.md (import "@/", PageShell, useToast, router.refresh(), status tiếng Việt...).
-- Không thay đổi hành vi hiện có trừ khi được yêu cầu.
-- Mọi thao tác CRUD phải qua API route (không gọi Prisma trực tiếp từ client).
-- Sau khi sửa, đánh giá xem có cần npm run build / lint để kiểm tra không.
-</prompt>
+Quy tắc:
+- Tuân thủ conventions trong AI_CONTEXT.md (import "@/", PageShell, useToast, router.refresh(),
+  status tiếng Việt đúng chuỗi, mọi CRUD qua API route — không gọi Prisma trực tiếp từ client).
+- Không đổi hành vi hiện có trừ khi được yêu cầu.
+- Sau khi sửa, chạy "npx tsc --noEmit" để kiểm tra type.
 ```
 
 ---
 
-## 1. TỔNG QUAN & TECH STACK
-
-Nền tảng Marketing AI cho doanh nghiệp bất động sản. Giao diện tiếng Việt, theme tối (navy + tím + vàng đồng).
+## 1. TECH STACK & LỆNH CHẠY
 
 | Thành phần | Công nghệ |
 |---|---|
-| Framework | **Next.js 14** (App Router) — `app/` |
-| Ngôn ngữ | **TypeScript** (strict mode) |
-| UI | React 18 + **Tailwind CSS 3** (`tailwind.config.ts`) |
-| Database | **Prisma ORM** + hiện đang dùng **SQLite** (`prisma/dev.db`) |
-| Biểu đồ | **recharts** |
-| Icons | **lucide-react** (re-export qua `components/icons.tsx`) |
-| Font chữ | Inter (`app/layout.tsx`, `--font-sans`) |
-| Auth | **NextAuth v4** (JWT + Credentials) — ĐÃ DÙNG cho đăng nhập + phân quyền RBAC |
-| Hash mật khẩu | `node:crypto` (scrypt) trong `lib/password.ts` — KHÔNG cần cài lib |
-| AI API | GROQ / OpenAI-compatible (tuỳ chọn, tự fallback AI nội bộ) |
+| Framework | **Next.js 14** (App Router), TypeScript strict |
+| UI | React 18 + Tailwind CSS 3, font Inter, theme tối (navy + tím + vàng đồng) |
+| Database | **PostgreSQL (Neon)** qua **Prisma ORM** (`prisma/schema.prisma`, `provider = "postgresql"`) |
+| Auth | **NextAuth v4** — JWT + Credentials (email/mật khẩu), cookie `maxAge` 30 ngày |
+| Hash mật khẩu | `node:crypto` scrypt (`lib/password.ts`) |
+| Biểu đồ | recharts · Icons: lucide-react (re-export ở `components/icons.tsx`) |
+| AI | GROQ / OpenAI-compatible (tuỳ chọn — có fallback template nội bộ khi không có key) |
+| Deploy | **Render** (auto-deploy từ GitHub main) |
 
-**Ghi chú quan trọng:**
-- `prisma/schema.prisma` hiện ghi `provider = "sqlserver"` nhưng **HUONG_DAN_CHAY.md** nói project đã chuyển sang SQLite. Khi chạy `npm run setup`, Prisma dùng SQLite (`prisma/dev.db`). Nếu muốn SQL Server thật thì đổi provider trong schema lại thành `"sqlserver"`.
-- Không cần cài DB ngoài — SQLite tự khởi tạo.
-
-### package.json — scripts
-```json
-"dev": "next dev",
-"build": "next build",
-"start": "next start",
-"lint": "next lint",
-"postinstall": "prisma generate",
-"setup": "prisma generate && prisma db push && tsx prisma/seed.ts",
-"db:push": "prisma db push",
-"db:generate": "prisma generate",
-"db:seed": "tsx prisma/seed.ts"
+### Scripts (package.json)
 ```
-- Prisma seed config: `"prisma": { "seed": "tsx prisma/seed.ts" }`
+npm run dev         # chạy dev server localhost:3000
+npm run build       # build production
+npm run db:push     # đồng bộ schema vào DB (prisma db push)
+npm run db:generate # prisma generate (tự chạy khi npm install qua postinstall)
+npm run db:seed     # npx tsx prisma/seed.ts — tạo user + settings mẫu
+npm run db:cleanup  # xoá dữ liệu demo
+```
 
-### Cách chạy
-```bash
-npm install
-npm run setup        # sinh client + tạo db SQLite + seed dữ liệu demo
-npm run dev          # mở http://localhost:3000/dashboard
+### Biến môi trường (đặt trong `.env` local / Render Environment — KHÔNG commit)
+```
+DATABASE_URL      # connection string Neon Postgres (BẮT BUỘC)
+NEXTAUTH_SECRET   # chuỗi ngẫu nhiên dài (BẮT BUỘC để đăng nhập)
+NEXTAUTH_URL      # vd https://<app>.onrender.com
+GROQ_API_KEY / AI_BASE_URL / AI_MODEL   # AI Content Studio + Trợ lý AI (tuỳ chọn)
+GEMINI_API_KEY / OPENAI_API_KEY         # provider AI khác (tuỳ chọn)
+VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY    # Web Push notification (tuỳ chọn)
+CRON_SECRET       # bảo vệ /api/cron (tuỳ chọn)
 ```
 
 ---
@@ -72,392 +63,189 @@ npm run dev          # mở http://localhost:3000/dashboard
 ## 2. CẤU TRÚC THƯ MỤC
 
 ```
-app/                          ← Next.js App Router (route = thư mục)
-  layout.tsx                  ← Root layout: globals.css, Inter font, ToastProvider
+app/
+  layout.tsx                  ← Root layout: Providers, RouteLoader, PushManager, logo từ DB
   page.tsx                    ← redirect("/dashboard")
-  globals.css                 ← toàn bộ CSS variables + utility classes
-  dashboard/                  ← Trang chính (đều dùng PageShell hoặc DashboardLayout)
-    layout.tsx                ← KHÔNG tồn tại; layout dashboard nằm ở components/layout.tsx
-    page.tsx                  ← Dashboard (KPI, AI Opportunity...)
-    analytics/  calendar/  campaigns/(+new)  content/  content-studio/(+new)
-    insights/   leads/(+new)  products/(+[id], +new)  reports/  settings/
-    team/       trends/       workflow/(+new)
-  api/                        ← Route Handlers (backend API)
-    automation/content/  campaigns/  contents/  generate-content/  health/
-    insights/  leads/  projects/  projects/[id]/  search/  settings/  tasks/  workflow/
-
-components/                   ← UI + business helpers (viết hoa tên file)
-  db.ts                       ← LỚP TRUY CẬP DB TẬP TRUNG (server-only)
-  prisma: lib/prisma.ts       ← PrismaClient singleton global
-  layout.tsx + page-shell.tsx ← Khung Dashboard (Sidebar + Header + content)
-  sidebar.tsx  header.tsx     ← Điều hướng & header (search, notif, help)
-  ui.tsx                      ← Kpi, SectionTitle, Status, EmptyState, Spinner, Field, Toggle
-  toast.tsx                   ← Hệ thống toast (ToastProvider + useToast)
-  Modal.tsx                   ← Modal dùng chung (ESC, backdrop)
-  icons.tsx                   ← Re-export lucide-react
-  charts.tsx                  ← PerformanceChart (line), ReportChart (bar)
-  Create*Form.tsx + Create*Modal.tsx  ← Form tạo + modal cho mỗi entity
-  ContentTable.tsx  LeadsTable.tsx    ← Bảng client-side có filter/đổi status/xoá
-  TaskStatusBadge.tsx  CampaignStatusToggle.tsx  WorkflowCard.tsx  RunAllWorkflowsButton.tsx
-  TrendsBoard.tsx  CalendarBoard.tsx  ReportsControls.tsx  DeleteProjectButton.tsx
-
-prisma/
-  schema.prisma               ← Data model (Prisma)
-  seed.ts                     ← Dữ liệu demo tiếng Việt (admin + user có password)
-  dev.db                      ← Database SQLite (auto tạo)
-
-lib/
-  prisma.ts                   ← PrismaClient singleton
-  password.ts                 ← hash/verify mật khẩu (scrypt, `node:crypto`)
-  permissions.ts              ← RBAC: ALL_PERMISSIONS, canAccess, isAdminLike
-  auth.ts                     ← authOptions (NextAuth) + getCurrentUser()
-  guard.ts                    ← requireUser / requirePerm / requireAdmin / requirePermApi
-
-middleware.ts                 ← chặn truy cập chưa đăng nhập (/dashboard, /api)
-types/next-auth.d.ts          ← khai báo kiểu Session (id, role, permissions)
-app/api/auth/[...nextauth]/route.ts ← auth handler
-app/api/users/route.ts        ← admin quản lý user & phân quyền
-app/login/page.tsx            ← trang đăng nhập
-app/forbidden/page.tsx        ← trang "không có quyền"
-app/dashboard/users/page.tsx  ← trang quản lý tài khoản (admin)
-components/ClientGuard.tsx    ← chặn quyền phía client (trang "use client")
-components/UsersManager.tsx   ← UI quản lý user + gán quyền
-
-public/projects/              ← Ảnh SVG mẫu dự án
-.env  .env.example            ← DATABASE_URL, GROQ_API_KEY, AI_BASE_URL, AI_MODEL, NEXTAUTH_SECRET, NEXTAUTH_URL
-tailwind.config.ts  tsconfig.json  postcss.config.mjs  next-env.d.ts
+  login/ forgot-password/ forbidden/   ← trang công khai
+  dashboard/                  ← TOÀN BỘ trang nghiệp vụ (bảo vệ bởi middleware.ts):
+    page.tsx                  ← Dashboard tổng quan
+    activity/ ads/ analytics/ assistant/ calendar/ chat/ content/ content-studio/(+new)
+    daily-reports/ leads/(+new) profile/(+password) reports/ settings/ social/
+    team/ tools/utm/ trends/ users/ work-reports/ work-stats/
+  api/                        ← Route Handlers (xem mục 5)
+components/                   ← UI + logic client (xem mục 8)
+lib/                          ← Nghiệp vụ dùng chung (xem mục 4, 6, 7)
+prisma/schema.prisma          ← Data model (xem mục 3)
+middleware.ts                 ← Chặn /dashboard + /api khi chưa đăng nhập (NextAuth getToken)
 ```
 
-### Định tuyến import
-- `tsconfig.json` → `"paths": {"@/*": ["./*"]}` → import `@/components/db`, `@/lib/prisma`, `@/components/ui`...
-- Import trong file dùng quy tắc: components nội bộ dùng `./xxx` hoặc `@/components/xxx` (cả hai đều xuất hiện trong code).
-
 ---
 
-## 3. DATA MODEL — Prisma (`prisma/schema.prisma`)
+## 3. DATA MODEL (prisma/schema.prisma)
 
-Tất cả model dùng `id Int @id @default(autoincrement())`. Ngày mặc định `@default(now())`.
-**Trạng thái (status) là chuỗi tiếng Việt** — không enum Prisma.
+> Sửa model xong PHẢI chạy: `npx prisma db push` (cập nhật DB) + `npx prisma generate` (cập nhật client).
 
-| Model | Các trường chính | Quan hệ |
+| Model | Trường chính | Ghi chú |
 |---|---|---|
-| **User** | name, email (unique), role (default "Marketing"), avatar, phone?, bio?, passwordHash?, permissions (JSON), active | contents[], leads[], tasks[], notifications[] |
-| **Project** | name, location, type, **priceMin/priceMax Float** (tỷ), area, status (default "Đang bán"), image, description | contents[], campaigns[], leads[] |
-| **Trend** | title, platform, views Int, growth Float, score Int, category?, recommendation? | — |
-| **Content** | title, platform, type, status (default "Ý tưởng"), tone?, script?, caption?, hashtags?, views, engagement, leads, score, **scheduledAt DateTime?**, authorId?, projectId? | author (User), project (Project) |
-| **Campaign** | name, status (default "Đang chạy"), **startDate/endDate DateTime** (bắt buộc), views, leads, ctr Float, progress Int, projectId? | project |
-| **Lead** | name, phone, source, status (default "Mới"), purpose? ("Ký gửi"/"Mua nhà"...), address?, budget?, projectId?, ownerId? | project, owner (User) |
-| **Task** | title, assignee?, status (default "Đang thực hiện"), priority (default "Trung bình"), deadline?, ownerId? | owner |
-| **Workflow** | name, description?, status (default "Running"), lastRun?, executions Int | — |
-| **Insight** | type, title, description, priority (default "medium") | — |
-| **SocialMetric** | platform, channel, followers, views, engagement, **videosPosted** (số video đã đăng trong tuần), weekLabel, note | owner (User) |
-| **StoredFile** | path (PK, vd "avatars/avatar_x.jpg"), mime, size, data (Bytes/bytea) — **mọi file upload lưu VÀO DB** để bền vững qua deploy/restart trên Render | — |
-| **Setting** | companyName "Tân Phú Land", brandColor "#6d36e8", slogan, aiModel, n8nWebhook, openaiKey, dbName, dbServer, notifyTrend/notifyContent/notifyViral Boolean | 1 bản ghi duy nhất |
-| **Notification** | userId, type (default "lead"), title, body?, refId?, read Boolean (default false), createdAt | user (User, onDelete Cascade) |
-| **Report** | title, period ("week"\|"month"), periodLabel, employeeId, status ("Chưa nộp"\|"Đã nộp"), fileName?, filePath?, submittedAt?, createdById? | employee (User, NoAction), createdBy (User, SetNull) |
+| **User** | name, email (unique), role, avatar, phone, bio, socialYoutube/Tiktok/Facebook/Instagram, passwordHash (scrypt), permissions (JSON string), active, jobTitle, lastActiveAt | role "Admin" hoặc "Marketing"...; `isAdminLike()` = role Admin HOẶC permissions chứa "*" |
+| **Task** | title, assignee (tên string), status, priority, deadline?, createdById | Công việc giao nhóm |
+| **Content** | title, platform, type, tone?, script?, caption?, hashtags?, views, leads, score, scheduledAt?, authorId? | Bài viết / video marketing |
+| **Lead** | name, phone?, source, status, purpose?, contacted, responseStatus, ownerId?, utmSource/Medium/Campaign/Content/... | Khách hàng tiềm năng |
+| **AdCampaign** | name, platform, objective, status, dailyBudget/totalBudget/spent (Float), impressions, reach, clicks, conversions, likes, comments, shares, videoViews, watchTime, startDate, endDate?, ownerId | Chạy quảng cáo |
+| **Trend** | title, platform, category, views, growth, score, recommendation?, source ("ai"/"manual"), ownerId? | Radar xu hướng BĐS |
+| **SocialMetric** | platform, channel, followers, views, engagement, **videosPosted** (số video đã đăng trong tuần), weekLabel ("YYYY-Wxx"), note?, ownerId? | Số liệu MXH nhập theo tuần; unique [platform, channel, weekLabel, ownerId] |
+| **SocialChannel** | platform, name | Danh mục kênh MXH (vd "Pháp Lý") |
+| **Report** | title, period ("week"/"month"), periodLabel, employeeId, status, fileName?, filePath?, submittedAt?, createdById | Báo cáo công việc (file đính kèm) |
+| **DailyReport** | userId, userName, date (string), tasksDone, note? | Nhật ký công việc hằng ngày, unique [userId, date] |
+| **StoredFile** | path (PK, vd "avatars/avatar_x.jpg"), mime, size, data (Bytes) | **MỌI file upload lưu VÀO DB** (ổ đĩa Render là tạm thời, mất khi deploy) |
+| **ActivityLog** | userId?, userName?, module, action, detail?, ipAddress?, createdAt | Lịch sử thao tác mọi chức năng |
+| **Notification** | userId, type, title, content, read, link?, refId?, fileName?, filePath? | Thông báo in-app; có user "broadcast" (system@company.vn) |
+| **PushSubscription** | userId, endpoint (unique), p256dh, auth | Web Push |
+| **CalendarEvent** | userId, userName, title, note?, eventDate | Sự kiện ngoài trên Lịch nội dung |
+| **AssistantConversation / AssistantMessage** | sessionId?, userId, userName, role, content... | Lịch sử chat Trợ lý AI |
+| **Friendship / Message / ChatGroup / GroupMember / GroupMessage** | — | Module chat nhóm + bạn bè |
+| **Setting** | key (unique), value, + các cột cấu hình AI (aiProvider, aiModel, aiApiKey, openaiApiKey, geminiApiKey...), notify* (Boolean) | Bảng cấu hình hệ thống |
 
-### Giá trị trạng thái (chuỗi tiếng Việt) — PHẢI dùng đúng
-- **Project.status:** `"Đang bán"`, `"Sắp mở bán"`, ... (products check `=== "Đang bán"`)
-- **Content.status:** `"Ý tưởng"`, `"Chờ duyệt"`, `"Đã đăng"`, `"Nháp"` (ContentTable `STATUSES` + toneOf)
-- **Campaign.status:** `"Đang chạy"`, `"Tạm dừng"`, `"Sắp tới"` (CampaignStatusToggle: Đang chạy ↔ Tạm dừng)
-- **Lead.status:** `"Mới"`, `"Đang tư vấn"`, `"Đã chốt"`, `"Không tiềm năng"` (LeadsTable)
-- **Task.status:** `"Chờ thực hiện"`, `"Đang thực hiện"`, `"Đã hoàn thành"` (TaskStatusBadge CYCLE)
-- **Task.priority:** `"Cao"`, `"Trung bình"`, `"Thấp"`
-- **Workflow.status:** `"Running"`, `"Waiting"` (tiếng Anh!)
-- **Insight.type:** `"opportunity"` | `"warning"`; priority `"high"|"medium"|"low"`
-
-> Khi thêm trạng thái mới, cập nhật ở CẢ form + bảng + toneOf + status toggle tương ứng.
-
----
-
-## 4. LỚP TRUY CẬP DB TẬP TRUNG (`components/db.ts`)
-
-**Server-only helper** — không dùng trong client component. Mọi trang **server component (async)** gọi hàm này lấy dữ liệu cho render.
-
-| Hàm | Trả về |
-|---|---|
-| `getTrends(limit=5)` | trend orderBy score desc |
-| `getContents(limit=10)` | content include author+project, orderBy createdAt desc |
-| `getCampaigns(limit=10)` | campaign include project, orderBy startDate desc |
-| `getLeads(limit=20)` | lead include project+owner |
-| `getProjects(limit=20)` | project orderBy createdAt desc |
-| `getProject(id)` | 1 project include contents+campaigns+leads |
-| `getWorkflows(limit=20)` | workflow orderBy id desc |
-| `getTasks(limit=50)` / `getInsights(limit=20)` | task / insight orderBy desc |
-| `getOverviewStats()` | contentCount, totalViews, totalEngagement, totalLeads, campaignCount, conversionRate |
-
-- `lib/prisma.ts` = PrismaClient singleton qua `globalThis` (chống leak khi HMR dev).
-
+### Giá trị status (chuỗi tiếng Việt — PHẢI dùng ĐÚNG)
+- **Task.status:** `"Chờ thực hiện"` / `"Đang thực hiện"` / `"Đã hoàn thành"`
+- **Lead.status:** `"Mới"` / `"Đang tư vấn"` / `"Đã chốt"` / `"Không tiềm năng"`
+- **Lead.contacted:** `"Đã liên hệ"` / `"Chưa liên hệ"`
+- **AdCampaign.status:** `"Đang chạy"` / `"Tạm dừng"` / `"Kết thúc"`
+- **Report.status:** `"Chưa nộp"` / `"Đã nộp"`
+- **Trend.source:** `"ai"` / `"manual"`
 
 ---
 
-## 5. REST API — Route Handlers (`app/api/...`)
+## 4. TRUY CẤP DỮ LIỆU
 
-**Quy ước chung:** mỗi route file khai báo `export async function GET/POST/PATCH/PUT/DELETE(req)`. Response luôn dạng `{ ok: boolean, ... }`, lỗi `{ ok:false, error:"..." }` (HTTP 400/404/500). Client kiểm tra `!res.ok || !data.ok`.
-
-### 5.1 `contents` `/api/contents`
-- **GET** → `{ contents }`
-- **POST** body: `{ title*, platform*, type?, status?, projectId?, authorId?, scheduledAt?, script?, caption?, hashtags?, tone? }` → `{ content }`
-- **PATCH** body: `{ id*, status* }` → `{ content }`
-- **DELETE** `?id=` → `{ ok:true }`
-
-### 5.2 `campaigns` `/api/campaigns`
-- **GET** `{ campaigns }`; **POST** `{ name*, startDate*, endDate*, projectId? }`; **PATCH** `{ id*, status?, progress? }` (không có DELETE)
-
-### 5.3 `leads` `/api/leads`
-- **GET** `{ leads }`; **POST** `{ name*, phone*, source?, projectId?, budget? }` (source default "Website"); **PATCH** `{ id*, status* }`; **DELETE** `?id=`
-
-### 5.4 `projects` `/api/projects` + `/api/projects/[id]`
-- `projects`: **GET** `{ projects }`; **POST** `{ name*, location?, type?, priceMin?, priceMax?, image?, description? }`
-- `projects/[id]`: **GET** include contents+campaigns+leads (404 nếu không có); **PATCH** (name/location/type/status/image/description/priceMin/priceMax); **DELETE**
-
-### 5.5 `tasks` `/api/tasks`
-- **GET** `{ tasks }`; **POST** `{ title*, assignee?, priority?, deadline? }` (status set "Chờ thực hiện"); **PATCH** `{ id*, status* }`
-
-### 5.6 `workflow` `/api/workflow`
-- **GET** `{ workflows }`; **POST** `{ name*, description? }` (status "Running")
-- **PATCH** body: `{ id*, action: "toggle"|"run" }` — toggle đảo Running↔Waiting; run tăng executions, set lastRun, status Running
-- **DELETE** `?id=`
-
-### 5.7 `settings` `/api/settings`
-- **GET** `{ settings }`; **PUT** body: companyName, brandColor, slogan, aiModel, n8nWebhook, openaiKey, dbName, dbServer (string) + notifyTrend/notifyContent/notifyViral (boolean)
-
-### 5.8 `insights` `/api/insights` — **GET** `{ insights }`
-### 5.9 `search` `/api/search?q=` — **GET** `{ projects, leads, contents }` (mỗi loại take 5, contains tên)
-
-### 5.10 `generate-content` `/api/generate-content` ⭐ AI (GROQ / nội bộ)
-- **POST** body: `{ title*, platform="TikTok", tone="Chuyên gia", length="60 giây", goal="Tăng lead" }`
-- Trả `{ result: { hook, script, caption, hashtags, tone, platform, length, goal } }`
-- **Nếu có key (GROQ/OpenAI-compatible từ .env hoặc Settings) → gọi thật:** base `https://api.groq.com/openai/v1/chat/completions`, model mặc định `llama-3.3-70b-versatile`, yêu cầu trả JSON `{hook,script,caption,hashtags}` rồi parse.
-- **Không có key / lỗi API → tự fallback AI nội bộ** (template HOOK/SCRIPT/CAPTION/HASHTAG_POOL, chọn theo `hashStr(title+platform+tone)`), hoạt động ngoại tuyến.
-- Cấu hình qua env: `GROQ_API_KEY`, `AI_BASE_URL`, `AI_MODEL` (hoặc `openaiKey` trong Settings).
-
-### 5.11 `automation/content` `/api/automation/content`
-- **POST** → gọi webhook n8n (`process.env.N8N_WEBHOOK_URL`). Nếu chưa cấu hình trả `{ok:true, message:"N8N_WEBHOOK_URL chưa cấu hình", payload:body}`.
-
-### 5.12 `health` `/api/health`
-- **GET** → `{ ok:true, database:"connected" }` (query `SELECT 1`)
-
-### 5.13 `notifications` `/api/notifications`
-- **GET** → `{ notifications, unread }` — danh sách thông báo của **user đang đăng nhập** (orderBy createdAt desc, take 50) + số chưa đọc.
-- **PATCH** body `{ id }` → đánh dấu 1 tin đã đọc; `{ all: true }` → đánh dấu tất cả đã đọc (chỉ tin của user hiện tại).
-- Khi **phân lead cho nhân viên** (`POST/PATCH /api/leads` có `ownerId` mới) → hệ thống tự tạo Notification `{userId: owner, type:"lead", title:"Lead mới được phân cho bạn", body:"tên • sđt", refId}`.
-
-### 5.14 `profile` `/api/profile`
-- **GET** → `{ user }` — thông tin **user đang đăng nhập**: id, name, email, phone, bio, role.
-- **PATCH** body tùy ý: `{ name?, email?, phone?, bio?, currentPassword?, newPassword? }` → cập nhật hồ sơ. Đổi email kiểm tra trùng; đổi mật khẩu yêu cầu `currentPassword` đúng + `newPassword` ≥ 6 ký tự.
-- Menu **hồ sơ cá nhân** (bấm avatar ở header) là dropdown có link dẫn sang trang: **Quản lý hồ sơ** → `/dashboard/profile`, **Đổi mật khẩu** → `/dashboard/profile?tab=password`, **Đăng xuất** → `signOut()`. Trang dùng `components/ProfileManager.tsx` + API này.
-
-### 5.15 Báo cáo công việc — `/api/work-reports...`
-- **GET `/api/work-reports`** → `{ reports, employees, isAdmin }`. Admin xem tất cả + kèm danh sách nhân viên; nhân viên chỉ thấy báo cáo của mình.
-- **POST** body `{ title, period:"week"|"month", periodLabel, employeeIds:number[] }` → admin tạo & **giao báo cáo** cho nhiều nhân viên (1 Report/nhân viên).
-- **POST `/api/work-reports/[id]/upload`** (multipart `file`) — nhân viên **nộp file Word (.doc/.docx)/PDF**. Chỉ chủ sở hữu hoặc admin. Xoá file cũ nếu nộp lại, set `status="Đã nộp"`.
-- **GET `/api/work-reports/[id]/file`** → **tải file về** (admin hoặc chủ sở hữu). Return `new NextResponse(new Uint8Array(data), ...)`.
-- **DELETE `/api/work-reports/[id]/file`** → nhân viên **xoá file** (nếu tải nhầm) → reset `status="Chưa nộp"`.
-- File lưu trong thư mục `uploads/reports/` (đường dẫn tương đối lưu cột `filePath`), dir const trong `lib/reports.ts`.
-- Quyền: module `reports_work` với các thao tác **view** (Xem) / **upload** (Nộp file) / **download** (Tải về) / **delete** (Xoá file). Admin (role `Admin`/`*`) được tất cả; giao báo cáo chỉ admin. UI ẩn nút theo quyền (`canUpload/canDownload/canDelete`). Page: `app/dashboard/work-reports`, component `components/ReportsWorkManager.tsx`, nav "Báo cáo công việc".
-
-### 5.16 Thu thập trend — `/api/trends/collect`
-- **POST** (quyền `trends` view): 
-  1. **Lấy chủ đề THẬT đang nổi** (ưu tiên YouTube API nếu có `YOUTUBE_API_KEY` → Google Trends RSS VN).
-  2. **GROQ chuyển thành 8 TREND NỘI DUNG BĐS** chủ yếu cho **TikTok & Facebook** (phong cách video ngắn/bài đăng): `title/platform/views/growth/score/category/recommendation`.
-  3. `deleteMany` rồi `create` → Trend Radar hiển thị trend BĐS cho TikTok/FB.
-- Nguồn hỏng → fallback GROQ sinh trực tiếp (source `"groq"`). Cả 2 lỗi → 502.
-- `TrendsBoard` có nút "Thu thập trend mới (AI)" + tự refresh mỗi 60s.
+- `lib/prisma.ts` — PrismaClient singleton qua `globalThis` (chống leak khi HMR). Import: `import { prisma } from "@/lib/prisma"`.
+- `components/db.ts` — hàm đọc dùng chung cho server component:
+  `getContents / getTopContents / getUpcomingContents / getCalendarEvents / getLeads / getStaffUsers / getAssigneeUsers / getTasks / getActivityLogs / getOverviewStats`.
+- Dashboard `work-stats` và `analytics` gọi prisma trực tiếp (tổng hợp trong JS — đủ cho quy mô demo).
 
 ---
 
-## 6. LUỒNG DỮ LIỆU & MẪU CHÍNH (rất quan trọng khi fix)
+## 5. REST API (`app/api/...`)
 
-### Server → Client (đọc)
-1. Page là **async server component** gọi `getXxx()` trong `components/db.ts`.
-2. Truyền dữ liệu làm **props** (thường qua `as any`) vào client components (ContentTable, LeadsTable, TrendsBoard...).
+**Quy ước chung:** mỗi route `export async function GET/POST/PATCH/DELETE(req)`.
+Response luôn `{ ok: true, ... }`, lỗi `{ ok: false, error: "..." }` (HTTP 400/401/403/404/500).
+Client luôn kiểm tra `res.ok && data.ok`. **Route ghi dữ liệu PHẢI gọi `requirePermApi("module_action")`** ở đầu handler.
 
-### Client → Server (ghi)
-1. Client component (`"use client"`) gọi `fetch("/api/xxx", { method, headers, body })`.
-2. Check `if (!res.ok || !data.ok) throw new Error(data.error...)`.
-3. Thành công → `toast.success(...)` + **`router.refresh()`** (re-render server component để cập nhật dữ liệu).
-4. Nếu ở trang `/new` → `router.push("/<danh mục>")`.
-
-### Tạo mới entity — 2 chế độ (dùng chung `<CreateXxxForm>` + `<CreateXxxModal>`)
-- **Modal:** page danh mục render `<CreateXxxModal projects={...} />`; modal mở `<CreateXxxForm onSuccess={close} ...>`.
-- **Trang `/new`:** `<CreateXxxForm />`, sau khi submit nếu `pathname.endsWith("/new")` thì push về danh mục.
-
-### Các trang `/new` hiện có
-`content-studio/new`, `campaigns/new`, `leads/new`, `products/new`, `workflow/new` — mỗi cái render `PageShell` + `CreateXxxForm`.
-
----
-
-## 7. UI COMPONENTS DÙNG CHUNG (`components/ui.tsx`, `toast.tsx`, `Modal.tsx`)
-
-| Component | Props | Chức năng |
+| Route | Mục đích | Phương thức |
 |---|---|---|
-| `Kpi` | `icon, label, value, delta?, tone="up"\|"down"` | Card thẻ KPI |
-| `SectionTitle` | `icon?, title, action?, onAction?, href?` | Tiêu đề section; nếu có href → link "Xem tất cả" |
-| `Status` | `children, tone="blue"` | Badge; tone: green/yellow/red/purple/blue/gold |
-| `EmptyState` | `title, desc` | Trạng thái rỗng |
-| `Spinner` | `size=15` | Loader xoay |
-| `Field` | `label, children` | Nhãn form (`label.field-label`) |
-| `Toggle` | `checked, onChange, label?` | Switch boolean (Settings) |
-| `useToast()` | `success/error/info/push(kind,title,desc)` | Toast; PHẢI nằm trong `<ToastProvider>` (root layout) |
-| `Modal` | `open, onClose, title?, children` | Modal; ESC/backdrop đóng |
-
-### Charts (`components/charts.tsx`)
-- `ReportChart({data})` — BarChart (views/eng). **Có `FALLBACK` (số liệu giả) khi data rỗng** — cẩn thận khi báo cáo trống.
-
----
-
-## 8. HỆ THỐNG STYLING (`app/globals.css` + Tailwind)
-
-**Theme tối cố định** (dù `darkMode:"class"`). CSS variables trong `:root`:
-
-| Var | Giá trị | Dùng cho |
-|---|---|---|
-| `--bg` / `--bg-2` | `#070c14` / `#0a1220` | nền |
-| `--panel`/`--panel2`/`--panel3` | `#0d1626`/`#101d31`/`#14233a` | panel/card |
-| `--border` / `--border-soft` | `#1e2f47` / `#17263c` | viền |
-| `--text` / `--muted` / `--muted-2` | `#eef3fb`/`#7d8fa8`/`#536178` | chữ |
-| `--brand` / `--brand-2` | `#7c5cff` / `#a78bfa` | tím chủ đạo |
-| `--gold` / `--gold-2` | `#e8b563` / `#f6d189` | vàng điểm nhấn |
-| `--success`/`--warning`/`--danger`/`--info` | xanh/vàng/đỏ/xanh dương | trạng thái |
-
-Tailwind extend: colors `ink/panel/panel2/purple/gold`, boxShadow `glow`, radius `xl2`.
-
-### Utility classes (dùng layout, KHÔNG phải Tailwind thuần)
-- Card: `.card`, `.card-hover`, `.glass`
-- Nút: `.btn-primary` (tím), `.btn-gold` (vàng, chữ `#241705`), `.btn-danger`, `.btn-ghost`, `.btn-icon`
-- Form: `.input`, `label.field-label`
-- Trạng thái: `.badge` (rounded-full), `.progress` + `> span` thanh tiến độ
-- Bảng: `table.data-table` (thead muted, hover tím)
-- Hiệu ứng: `.animate-in`, `.pulse-dot`, `.toast-in`, `.skeleton`, `.gradient-text`, `.divider`
-- Bố cục hay dùng: `grid grid-cols-2 xl:grid-cols-4 gap-4`, `grid lg:grid-cols-3 gap-5`
-
-> Ưu tiên dùng các class này thay vì tự viết màu mới để giữ nhất quán. Panel tím cho section, vàng cho điểm nhấn (nút "Lưu vào Content" dùng `btn-gold`).
----
-
-## 9. TRANG VÀ ROUTE → NGUỒN DỮ LIỆU
-
-Mỗi trang = async server component dùng `PageShell` (trừ Dashboard dùng `DashboardLayout` trực tiếp).
-
-| Route | Title | Lấy data từ | Client component |
-|---|---|---|---|
-| `/dashboard` | Dashboard | getContents, getTopContents, getUpcomingContents, getOverviewStats, getLeads, prisma (ads/social/trends/tasks) | ReportChart |
-| `/dashboard/trends` | Trend Radar | getTrends(50) | TrendsBoard |
-| `/dashboard/content-studio` | AI Content Studio | (client tự fetch) | gọi /api/generate-content, /api/contents |
-| `/dashboard/content-studio/new` | | — | CreateContentForm |
-| `/dashboard/calendar` | Content Calendar | getContents(200) → scheduled | CalendarBoard |
-| `/dashboard/content` | Content Manager | getContents(200) | CreateContentModal, ContentTable |
-| `/dashboard/analytics` | Social Analytics | prisma trực tiếp (contents/ads/social/leads) | — |
-| `/dashboard/leads` (+/new) | Leads | getLeads(200), getStaffUsers | CreateLeadModal, LeadsTable, ExportLeadsButton |
-| `/dashboard/team` | Team Collaboration | getTasks, getAssigneeUsers | CreateTaskModal, TaskStatusSelect, EditTaskModal, TeamTaskFocus, UrlFilters |
-| `/dashboard/ads` | Chạy quảng cáo | prisma.adCampaign | AdsClient (AdsStats, AdCampaignForm, AdCampaignTable) |
-| `/dashboard/social` | Trạng thái MXH | (client fetch /api/social) | SocialStatusPanel |
-| `/dashboard/work-stats` | Thống kê công việc (tuần/tháng/quý/năm, so sánh từng kỳ + theo chức năng/người) | ActivityLog, Task, Content, Lead, Report, DailyReport, SocialMetric, AdCampaign | WorkStatsBoard |
-| `/dashboard/work-reports` | Báo cáo công việc | prisma.report | ReportsWorkManager |
-| `/dashboard/daily-reports` | Nhật ký công việc | prisma.dailyReport | DailyReportManager |
-| `/dashboard/chat` | Trò chuyện nhóm | prisma (friendship/group/message) | ChatPanel |
-| `/dashboard/assistant` | Trợ lý AI | (client fetch /api/assistant) | AssistantChat |
-| `/dashboard/tools/utm` | UTM Builder | — | UtmBuilder |
-| `/dashboard/activity` | Lịch sử hoạt động | getActivityLogs(200) | ActivityLogTable |
-| `/dashboard/reports` | Báo cáo | getOverviewStats | ReportsControls (xuất CSV), Kpi |
-| `/dashboard/settings` | Cài đặt hệ thống | (client fetch /api/settings) | Toggle, Field, SocialChannelsManager |
-| `/dashboard/users` | Quản lý tài khoản | (client fetch /api/users) | UsersManager |
-| `/dashboard/profile` | Hồ sơ cá nhân | (client fetch /api/profile) | ProfileManager (tab Hồ sơ / Đổi mật khẩu) |
-
-### Navigation (sidebar.tsx)
-Tổng quan: Dashboard · Nội dung & AI: Studio nội dung AI, Lịch nội dung, Quản lý nội dung, Xu hướng BĐS, Trợ lý AI · Kinh doanh: Khách hàng tiềm năng, Chạy quảng cáo, Mạng xã hội · Vận hành: Cộng tác nhóm, Báo cáo, Thống kê công việc, Phân tích Marketing, UTM Builder, Báo cáo công việc, Nhật ký công việc · Quản trị (admin): Cài đặt hệ thống, Quản lý tài khoản, Lịch sử hoạt động.
-
-### Lưu ý header.tsx
-- Ô search gọi `/api/search?q=` (debounce 300ms). Nút "Tạo content" → `/dashboard/content-studio`.
-- NOTIFICATIONS/HELP là dữ liệu tĩnh (hardcode), avatar "MT" hardcode — không lấy từ DB.
+| `/api/contents` | CRUD nội dung | GET/POST/PATCH/DELETE |
+| `/api/tasks` | CRUD công việc nhóm (xóa chỉ Admin) | GET/POST/PATCH/DELETE |
+| `/api/leads` + `/api/leads/export` | CRUD lead + xuất Excel | GET/POST/PATCH/DELETE |
+| `/api/ads` + `/api/ads/[id]` | CRUD chiến dịch quảng cáo | GET/POST/PATCH/DELETE |
+| `/api/trends` + `/api/trends/ai-filter` | Xu hướng: CRUD theo owner, thu thập AI, lọc theo công ty | GET/POST/PATCH/DELETE |
+| `/api/social` | Số liệu MXH theo tuần | GET/POST/PATCH/DELETE |
+| `/api/social-channels` | Danh mục kênh MXH (Admin quản) | GET/POST/DELETE |
+| `/api/profile` + `/api/profile/avatar` | Hồ sơ cá nhân + ảnh đại diện (lưu DB) | GET/PATCH + POST/DELETE |
+| `/api/settings` | Cấu hình hệ thống (Admin) | GET/PUT |
+| `/api/settings-public` | Cấu hình công khai (logo, tên công ty — không cần Admin) | GET |
+| `/api/settings/logo` + `/api/settings/assistant-logo` | Upload logo công ty / chatbot (lưu DB) | POST/DELETE |
+| `/api/users` + `/api/users/[id]/profile` + `/api/users/reset-token` | Quản lý tài khoản (Admin) + hồ sơ bạn bè + sinh mã reset mật khẩu | GET/POST/PATCH/DELETE |
+| `/api/auth/[...nextauth]` | NextAuth handler | GET/POST |
+| `/api/auth/lock-status` + `/api/auth/reset-password` | Trạng thái khóa đăng nhập + đặt lại mật khẩu (công khai) | GET/POST |
+| `/api/work-reports` (+`/[id]/upload`, `/[id]/file`, `/[id]/preview`, `/export`) | Báo cáo công việc: giao/nộp/tải/xem trước/xuất | GET/POST/PATCH/DELETE |
+| `/api/dailyreports` | Nhật ký công việc hằng ngày | GET/POST/PATCH |
+| `/api/notifications` (+`/upload`, `/[id]/file`) | Thông báo + file đính kèm (lưu DB) | GET/POST |
+| `/api/assistant` + `/api/assistant/history` + `/api/assistant/settings` + `/api/assistant/upload` | Trợ lý AI (stream NDJSON) + lịch sử + cài đặt + upload đính kèm | GET/POST/PATCH/PUT/DELETE |
+| `/api/chat/upload` | Ảnh chat nhóm (lưu DB) | POST |
+| `/api/messages`, `/api/messages/conversations`, `/api/messages/unread-count` | Chat 1-1 | GET/POST |
+| `/api/groups` + `/api/groups/[id]/messages` | Chat nhóm | GET/POST |
+| `/api/friends` + `/api/friends/accept` + `/api/friends/search` | Kết bạn | GET/POST |
+| `/api/calendar-events` | Sự kiện ngoài trên lịch | GET/POST/DELETE |
+| `/api/files/[...path]` | Phục vụ file upload: đọc từ DB trước, fallback ổ đĩa | GET |
+| `/api/online` | Heartbeat "đang hoạt động" | GET/POST |
+| `/api/push` | Đăng ký Web Push (VAPID) | GET/POST |
+| `/api/ai/test` | Kiểm tra cấu hình AI (Admin) | POST |
+| `/api/generate-content` | Sinh nội dung AI (GROQ/fallback template) | POST |
+| `/api/automation/run` + `/api/cron` | Chạy job tự động (thông báo tuần, reminder...) — cron có CRON_SECRET | GET/POST |
+| `/api/search?q=` | Tìm kiếm nhanh (lead/content) | GET |
+| `/api/health` | Kiểm tra DB connected | GET |
 
 ---
 
-## 10. AI CONTENT STUDIO — flow đầy đủ
-1. `trends/page.tsx` → TrendsBoard nút **"Phân tích BĐS"** → link `/dashboard/content-studio?title=<trend.title>`.
-2. `content-studio/page.tsx` đọc `searchParams.get("title")` làm chủ đề mặc định.
-3. Bấm "Tạo content với AI" → POST `/api/generate-content` → nhận `{hook, script, caption, hashtags}`.
-4. Bấm "Lưu vào Content Manager" → POST `/api/contents` với `{ title, platform, type:"Video", tone, script, caption, hashtags, status:"Ý tưởng" }` → `router.push("/dashboard/content")`.
+## 6. AUTH & PHÂN QUYỀN (RBAC)
+
+- **Đăng nhập:** NextAuth Credentials (email + mật khẩu) — cấu hình ở `lib/auth.ts` (JWT strategy, session 30 ngày, `updateAge` 1 giờ). Trang login riêng `pages.signIn = "/login"`. Có khóa IP tạm thời khi sai mật khẩu nhiều lần (`lib/rateLimit.ts`).
+- **Middleware** (`middleware.ts`): chặn mọi `/dashboard` + `/api` (trừ route công khai) khi không có token hợp lệ.
+- **Phân quyền** (`lib/permissions.ts`):
+  - Mỗi module có các action: vd `social` → `social_view`, `social_create`, `social_update`, `social_delete`, `social_export`.
+  - `canAccess(user, "key")` — kiểm tra 1 quyền; `isAdminLike(user)` — role "Admin" hoặc permissions chứa `"*"`.
+  - Quyền mặc định nhân viên mới: mọi action của STAFF_MODULES, trừ `DEFAULT_EXCLUDED` (team_update, team_delete, ads_update, các thao tác ghi/xoá/xuất của social...). Admin cấp thêm trong Cài đặt → Phân quyền.
+- **Kiểm tra quyền 3 tầng (BẮT BUỘC khi thêm trang/feature mới):**
+  1. Trang server component: `await requirePerm("module")` (`lib/guard.ts`)
+  2. Trang "use client": bọc `<ClientGuard perm="module">`
+  3. Route API ghi dữ liệu: `await requirePermApi("module_action")`
+- **Ghi log:** mọi thao tác gọi `logActivity(module, action, detail)` (`lib/activity.ts`) → bảng ActivityLog → trang Lịch sử hoạt động + trang Thống kê công việc.
+- **jwt callback** (`lib/auth.ts`): làm mới role/permissions từ DB ở MỖI request → admin đổi quyền có hiệu lực NGAY (user bị `active=false` bị thu hồi toàn bộ quyền).
 
 ---
 
-## 11. QUY ƯỚC CODE & CẠM BẪY KHI FIX (đọc kỹ)
+## 7. LƯU TRỮ FILE (quan trọng!)
 
-1. **Client component bắt buộc `"use client"`** dòng đầu; server page là async. KHÔNG gọi Prisma/db.ts trong client.
-2. **CRUD phải qua API route**, không gọi Prisma trực tiếp từ giao diện.
-3. **Sau thao tác ghi:** luôn `router.refresh()` + `toast`. Thông báo tiếng Việt.
-4. **Status dùng chuỗi tiếng Việt đúng chuỗi** (mục 3) — sai chữ cái = badge màu sai, toggle không chạy.
-5. **`schema.prisma` ghi `sqlserver`** nhưng runtime đang SQLite. Đổi provider phải đổi cả `DATABASE_URL` trong `.env`.
-6. **`priceMin/priceMax` Float (đơn vị tỷ)** — hiển thị `${p.priceMin} – ${p.priceMax} tỷ`.
-7. **Biểu đồ có FALLBACK dữ liệu giả** — data rỗng vẫn vẽ mẫu. Seed XÓA HẾT dữ liệu rồi seed mới (chạy lại sẽ reset DB demo).
-8. **`getDailySeries/getOverviewStats` đọc toàn bộ bảng rồi gộp trong JS** — không scale tốt, chỉ đủ demo.
-9. **Nhiều chỗ dùng `any`** (`as any`) — cẩn thận khi thêm field Prisma mới.
-10. **`SCRIPT_TEMPLATES` dùng `length.includes("30")`** — logic độ dài kịch bản ràng buộc; chỉ đổi 30/60.
-11. **Toast nằm trong `<ToastProvider>`** (root layout); `useToast()` ngoài provider trả no-op fail-safe.
-12. **Chưa có auth thực tế** dù đã cài next-auth — header hardcode "Marketing Team / Admin".
+- **MỌI file upload (avatar, logo, ảnh chat, file báo cáo, file thông báo) lưu VÀO DATABASE** — bảng `StoredFile` (Postgres bytea), qua `lib/storage.ts`:
+  - `saveFile(rel, buffer)` — upsert theo `rel` (vd `avatars/avatar_x.jpg`) + mirror ra ổ đĩa (best-effort)
+  - `readFileStored(rel)` — đọc DB trước, fallback ổ đĩa `<cwd>/uploads` rồi `<cwd>/public/uploads` (file cũ)
+  - `deleteStoredFile(rel)` — xóa DB + ổ đĩa
+- Lý do: Render free tier dùng **ổ đĩa tạm thời** — deploy/restart là mất file. DB (Neon) không bao giờ bị reset.
+- File phục vụ qua route `/api/files/[...path]` với MIME tự nhận từ phần mở rộng.
+- **KHÔNG lưu file mới vào ổ đĩa trực tiếp nữa** — luôn dùng `lib/storage.ts`.
 
 ---
 
-## 12. CHECKLIST KHI THÊM TÍNH NĂNG / ENTITY MỚI
-1. Thêm model vào `prisma/schema.prisma` → `npx prisma db push` (SQLite) → có thể thêm vào `seed.ts`.
-2. Thêm `getXxx()` vào `components/db.ts`.
-3. Thêm API route `app/api/xxx/route.ts` (GET/POST/PATCH/DELETE theo mẫu có sẵn).
-4. Tạo `components/CreateXxxForm.tsx` + `CreateXxxModal.tsx` (theo mẫu CreateContent*).
-5. Tạo `/new` page + trang danh mục dùng `PageShell` + component bảng.
-6. Thêm vào `sidebar.tsx` navItems nếu cần.
-7. Đảm bảo status/toneOf/STATUSES đúng chuỗi tiếng Việt.
-8. Chạy `npm run build` để check type/lint.
+## 8. UI CONVENTIONS
+
+- **Layout:** trang server component dùng `PageShell` (`components/page-shell.tsx`, props title/subtitle); riêng Dashboard dùng `DashboardLayout` (`components/layout.tsx`). Menu sidebar tự ẩn theo quyền (`components/sidebar.tsx`, nhóm: Tổng quan / Nội dung & AI / Kinh doanh / Vận hành / Quản trị).
+- **Client component** phải có `"use client"` ở dòng đầu.
+- **Import path alias:** `"@/components/..."`, `"@/lib/..."` — icons import từ `./icons` (re-export lucide-react), KHÔNG import trực tiếp `lucide-react`.
+- **UI kit:** `components/ui.tsx` — `Kpi`, `Status`, `Field`, `Spinner`, `Toggle`, `EmptyState`. Modal dùng chung `components/Modal.tsx` (ESC + backdrop). Phân trang `components/Pagination.tsx`. Lọc theo URL `components/UrlFilters.tsx`.
+- **Toast:** `useToast()` từ `components/toast` (đã bọc trong root layout; ngoài provider trả no-op).
+- **Làm mới dữ liệu sau mutation:** client gọi `router.refresh()` (App Router tự re-render server component).
+- **CSS:** theme qua CSS variables (`--bg/--panel/--panel2/--text/--border...` trong globals.css); class tiện ích `.card`, `.input`, `.btn-primary` đã định nghĩa sẵn — đừng tự viết lại.
+- **Biểu đồ:** recharts; tooltip style chung `background: var(--panel2)`.
+- **Xuất Excel:** dùng thư viện `exceljs` (vd SocialStatusPanel, ExportLeadsButton).
+- **Confirm/xác nhận:** `Swal` (sweetalert2) hoặc `confirm()` — theo style từng component hiện có.
 
 ---
 
-## 13. ĐĂNG NHẬP & PHÂN QUYỀN (RBAC) — ĐÃ CÓ, đọc kỹ
+## 9. BẢO MẬT — những điều AI cần biết
 
-### Kiến trúc bảo vệ (2 lớp)
-1. **`middleware.ts`** (edge): chặn `/dashboard/*` và `/api/*` nếu chưa đăng nhập → redirect về `/login`. Đường dẫn công khai: `/login`, `/api/auth/*`, `/api/health`, `/forbidden`.
-2. **Guard theo quyền (per-feature):**
-   - Trang **server component**: gọi `await requirePerm("key")` từ `@/lib/guard` (chưa login → `/login`, thiếu quyền → `/forbidden`).
-   - Trang **"use client"** (Content Studio, Settings): bọc `<ClientGuard perm="key">`.
-   - **Route API**: mỗi handler ghi (POST/PATCH/PUT/DELETE...) gọi `requirePermApi("key")`; nếu thiếu quyền trả 403. (GET chủ yếu vẫn cần login qua middleware.)
-
-### Quyền theo chức năng + thao tác (CRUD) — `lib/permissions.ts`
-Quyền = `module_action`. Riêng **"Xem" giữ key = tên module** (vd `content`); các thao tác còn lại là `{module}_{create|update|delete}`.
-- vd: **Content Manager** → `content` (xem), `content_create` (thêm), `content_update` (sửa), `content_delete` (xoá).
-- Trang (view) dùng `requirePerm("module")`; API ghi dùng `requirePermApi("module_action")` ở đầu từng handler mutable.
-- `PERMISSION_GROUPS` (nhóm theo chức năng, kèm label tiếng Việt) → dùng cho UI gán quyền; `ALL_PERMISSIONS` là mảng phẳng.
-- Admin: `role="Admin"` hoặc `permissions` chứa `"*"` → toàn quyền (`canAccess`).
-- User lưu `permissions` dạng JSON string `"[\"content_create\",...]"` trên cột `User.permissions`.
-
-### Mô hình dữ liệu User
-- Bắt buộc: `passwordHash` (scrypt `salt:hash`), `active Boolean`, `permissions String`.
-- `lib/password.ts`: `hashPassword(pw)` / `verifyPassword(pw, stored)`.
-- `lib/auth.ts`: NextAuth `authOptions` (JWT strategy, CredentialsProvider, gọi Prisma), `getCurrentUser()`.
-- `app/api/users/route.ts`: chỉ admin — GET list, POST tạo, PATCH sửa (quyền/role/active/đổi mật khẩu), DELETE (không xoá chính mình).
-
-### Tài khoản demo (seed)
-- Admin: `admin@company.vn` / `admin123` (toàn quyền `["*"]`)
-- Nhân viên: `hung@company.vn`, `tuan@company.vn`, `trang@company.vn`, `nam@company.vn` / `123456` (thiếu `campaigns`, `settings`, `users`)
-
-### Checklist khi THÊM trang/chức năng MỚI (quan trọng)
-1. Thêm module + các thao tác vào `PERMISSION_GROUPS` trong `lib/permissions.ts` (label tiếng Việt); `ALL_PERMISSIONS`/`DEFAULT_PERMISSIONS` tự sinh.
-2. Trang server: bọc hàm bằng `await requirePerm("module")` (quyền Xem); trang client: bọc `<ClientGuard perm="module">`.
-3. Route API ghi dữ liệu: gọi `requirePermApi("module_create"|"module_update"|"module_delete")` ở đầu mỗi handler mutable.
-4. Thêm mục menu vào `sidebar.tsx` navItems kèm trường `perm` (menu tự ẩn theo quyền).
-5. Không quên **seed/migrate** sau khi thêm cột Prisma.
+- **KHÔNG BAO GIỜ** hardcode mật khẩu / API key / connection string vào code. Tất cả qua biến môi trường.
+- Repo GitHub là **public** — mọi thứ commit lên đều ai cũng đọc được. `AI_CONTEXT.md` được thiết kế an toàn để public (chỉ mô tả kiến trúc).
+- `.env` đã nằm trong `.gitignore` — không bao giờ commit.
+- `prisma/seed.ts`: KHÔNG đặt mật khẩu cứng — seed sinh mật khẩu NGẪU NHIÊN và chỉ in ra console 1 lần.
+- Mật khẩu hash bằng scrypt (`lib/password.ts`: `hashPassword` / `verifyPassword`) — không dùng lib ngoài.
+- Route `/api/cron` nên được bảo vệ bằng `CRON_SECRET` (query param) trước khi cấu hình cron công khai.
+- Rate limit đăng nhập (`lib/rateLimit.ts`): khóa IP+email tạm thời khi sai quá nhiều lần.
 
 ---
 
-## 14. CHẾ ĐỘ SÁNG + RESPONSIVE (đã có)
-- **Chế độ sáng:** biến CSS `html.light { ... }` override trong `globals.css` (đảo `--bg/--panel/--text/...`). Bọc `<ThemeProvider attribute="class" defaultTheme="dark">` (next-themes) trong `app/layout.tsx`; nút đổi chủ đề ☀️/🌙 ở header. `.glass` dùng `color-mix(var(--panel))` để tự theo theme.
-- **Responsive:** `components/layout.tsx` là client, quản lý drawer. `main` chỉ có `lg:ml-[245px]`. `sidebar.tsx` là **drawer** trên mobile (ẩn bằng `-translate-x-full`, mở khi `open`, có backdrop; desktop `lg:translate-x-0` luôn hiện). Header có nút hamburger ☰ (`lg:hidden`) + nút **Đăng xuất** (luôn hiển thị).
-- **Header** hiện tên/role từ `useSession()`, nút Đăng xuất `signOut({callbackUrl:"/login"})`.
+## 10. CHECKLIST — thêm trang / tính năng MỚI
+
+1. Thêm model vào `prisma/schema.prisma` (nếu cần) → `npx prisma db push` + `npx prisma generate`.
+2. Thêm module + actions vào `PERMISSION_GROUPS` trong `lib/permissions.ts` (nhãn tiếng Việt).
+3. Tạo Route Handler `app/api/<feature>/route.ts` — mọi handler ghi dữ liệu gọi `requirePermApi`.
+4. Tạo trang server component `app/dashboard/<feature>/page.tsx` với `await requirePerm("module")` + `PageShell` hoặc `DashboardLayout`.
+5. Tạo client component trong `components/` (nếu cần tương tác).
+6. Thêm mục menu vào `components/sidebar.tsx` (kèm `perm`, `icon`, `group`) — menu tự ẩn theo quyền.
+7. Status / nhãn dùng đúng chuỗi tiếng Việt (mục 3).
+8. Nếu có upload file → dùng `lib/storage.ts` (KHÔNG ghi ổ đĩa trực tiếp).
+9. Ghi log thao tác qua `logActivity(...)` để thống kê công việc phản ánh đúng.
+10. Chạy `npx tsc --noEmit` kiểm tra, rồi cập nhật lại chính file AI_CONTEXT.md này.
 
 ---
-## 15. CÂU LỆNH BẮT BUỘC SAU KHI THÊM CỘT PRISMA / ĐỔI SCHEMA
-- `npx prisma generate` (tự chạy khi `npm install` qua postinstall) — **thiếu bước này sẽ lỗi TS** vì client cũ không biết cột mới.
-- Thêm cột vào DB: `npx prisma db push` (SQLite hoặc SQL Server), rồi nếu cần dữ liệu demo: `npm run db:seed` (⚠️ xoá hết data hiện có).
-- Đăng nhập cần `NEXTAUTH_SECRET` (đặt giá trị dài ngẫu nhiên trong `.env`) + `NEXTAUTH_URL=http://localhost:3000`.
-- Sau bất kỳ thay đổi: **khởi động lại `npm run dev`**.
 
----
+## 11. LƯU Ý ĐÃ BIẾT (quirks)
 
-*File tổng hợp toàn bộ source. Khi source thay đổi đáng kể, nên cập nhật lại AI_CONTEXT.md.*
+- Render free tier: service ngủ sau ~15 phút không truy cập; **ổ đĩa tạm thời** — mọi file ngoài DB sẽ mất khi deploy (đã xử lý bằng StoredFile).
+- Session đăng nhập 30 ngày (đã tăng từ 12 giờ để không phải đăng nhập lại mỗi sáng).
+- `components/db.ts` và nhiều chỗ dùng `as any` — cẩn thận khi thêm field Prisma mới.
+- `Trend.source = "ai"` — trend thu thập tự động; trend thủ công là `"manual"`.
+- Trang `work-stats` (Thống kê công việc) tổng hợp theo tuần/tháng/quý/năm từ ActivityLog + các model trạng thái — nếu thêm nguồn dữ liệu mới, cập nhật `components/WorkStatsBoard.tsx`.
+- `AI_CONTEXT.md` cần được cập nhật KÈM THEO mọi thay đổi lớn của source (model mới, route mới, trang mới).
+
+
+
