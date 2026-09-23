@@ -187,7 +187,7 @@ export default async function AnalyticsPage({
                 {topContents.map((c, i) => (
                   <tr key={i} className="border-b border-[var(--border-soft)]/50 hover:bg-[var(--panel2)]/50">
                     <td className="py-2 pr-2 font-black text-slate-500">{i + 1}</td>
-                    <td className="py-2 pr-2 font-bold line-clamp-1 max-w-[240px]">{c.title}</td>
+                    <td className="py-2 pr-2 font-bold whitespace-normal break-words min-w-[240px]">{c.title}</td>
                     <td className="py-2 pr-2 text-slate-400">{c.platform}</td>
                     <td className="py-2 pr-2 text-right">{fmt(c.views)}</td>
                     <td className="py-2 pr-2 text-right font-black text-emerald-400">{c.leads}</td>
@@ -244,7 +244,7 @@ export default async function AnalyticsPage({
             <tbody>
               {campaignsCPL.map((a) => (
                 <tr key={a.id} className="border-b border-[var(--border-soft)]/50 hover:bg-[var(--panel2)]/50">
-                  <td className="py-2 pr-2 font-bold line-clamp-1 max-w-[220px]">{a.name}</td>
+                  <td className="py-2 pr-2 font-bold whitespace-normal break-words min-w-[200px]">{a.name}</td>
                   <td className="py-2 pr-2 text-slate-400">{a.platform}</td>
                   <td className="py-2 pr-2 text-slate-400">{a.status}</td>
                   <td className="py-2 pr-2 text-right">{vnd(a.spent)}</td>
