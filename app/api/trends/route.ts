@@ -93,7 +93,11 @@ async function fetchGoogleNews() {
   for (const q of queries) {
     try {
       const url = "https://news.google.com/rss/search?q=" + encodeURIComponent(q) + "&hl=vi&gl=VN&ceid=VN:vi";
-      const r = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" }, cache: "no-store" });
+      const r = await fetch(url, {
+        headers: { "User-Agent": "Mozilla/5.0" },
+        cache: "no-store",
+        signal: AbortSignal.timeout(15_000),
+      });
       if (!r.ok) continue;
       const xml = await r.text();
       const chunks = xml.split("<item>").slice(1).map((c) => c.split("</item>")[0]);
@@ -253,6 +257,7 @@ export async function POST(req: NextRequest) {
   if (body?.refresh) {
     let googleCount = 0;
     let aiCount = 0;
+    let newsCount = 0;
 
     // 1) Google Trends — riêng của tôi, chỉ thêm title chưa có
     const googleTrends = await fetchGoogleTrends();
@@ -269,6 +274,21 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // 1b) TIN NÓNG BĐS từ Google News — chỉ thêm bài chưa có của tôi
+    const news = await fetchGoogleNews();
+    if (news.length) {
+      const existingNews = await prisma.trend.findMany({
+        where: { source: "google-news", ownerId: uid },
+        select: { title: true },
+      });
+      const haveNews = new Set(existingNews.map((e) => e.title.toLowerCase()));
+      for (const t of news) {
+        if (haveNews.has(t.title.toLowerCase())) continue;
+        await prisma.trend.create({ data: { ...t, ownerId: uid } as any });
+        newsCount++;
+      }
+    }
+
     // 2) AI — thay trend AI CỦA TÔI bằng bộ mới
     const ai = await fetchAITrends();
     if (ai.trends.length) {
@@ -280,26 +300,26 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-      await logActivity("trends", "create", "Thu thập trend: " + googleCount + " Google Trends, " + aiCount + " AI");
+      await logActivity("trends", "create", "Thu thập trend: " + googleCount + " Google Trends, " + newsCount + " tin nóng, " + aiCount + " AI");
     } catch {}
 
-    // Thông báo cho người thu thập khi có trend mới (nếu bật notifyTrend trong Cài đặt)
-    const newTrends = googleCount + aiCount;
+    // Thông báo cho người thu thập khi có trend/tin mới (nếu bật notifyTrend trong Cài đặt)
+    const newTrends = googleCount + aiCount + newsCount;
     if (newTrends > 0 && uid && (await notifyEnabled("notifyTrend"))) {
       await safeNotify({
         userId: uid,
         type: "trend",
-        title: `🔥 Phát hiện ${newTrends} trend mới`,
-        content: `Google Trends: ${googleCount} • AI gợi ý: ${aiCount} — mở tab Xu hướng để xem chi tiết.`,
+        title: `🔥 Phát hiện ${newTrends} trend/tin mới`,
+        content: `Google Trends: +${googleCount} • Tin nóng BĐS: +${newsCount} • AI gợi ý: +${aiCount} — mở tab Xu hướng để xem chi tiết.`,
         link: "/dashboard/trends",
       });
     }
 
     return NextResponse.json({
       ok: true,
-      added: { google: googleCount, ai: aiCount },
+      added: { google: googleCount, ai: aiCount, news: newsCount },
       aiEnabled: !!(await getAICfg()).key,
-      // AI hỏng vẫn ok:true (giữ trend Google) nhưng báo lỗi để UI cảnh báo
+      // AI hỏng vẫn ok:true (giữ trend Google/tin nóng) nhưng báo lỗi để UI cảnh báo
       aiError: ai.error || null,
     });
   }
