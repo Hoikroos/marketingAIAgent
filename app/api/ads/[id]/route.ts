@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requirePermApi, getApiUser } from "@/lib/guard";
 import { prisma } from "@/lib/prisma";
+import { safeNotify, notifyAdmins, notifiedToday } from "@/lib/notify";
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   const denied = await requirePermApi("ads");
@@ -50,6 +51,40 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       notes: body.notes ?? existing.notes,
     },
   });
+
+  try {
+    const actorId = Number(user.id);
+
+    // 1) Trạng thái thay đổi → báo cho chủ chiến dịch (nếu người sửa là admin) và admin (nếu người sửa là chủ)
+    if (body.status && body.status !== existing.status) {
+      const msg = {
+        type: "ads",
+        title: `📣 "${campaign.name}" → ${String(campaign.status)}`,
+        content: `Chiến dịch ${campaign.platform} chuyển trạng thái: ${existing.status} → ${String(campaign.status)} (bởi ${user.name || "ai đó"})`,
+        link: "/dashboard/ads",
+        refId: id,
+      };
+      if (existing.ownerId !== actorId) await safeNotify({ ...msg, userId: existing.ownerId });
+      await notifyAdmins({ ...msg, exceptUserId: actorId });
+    }
+
+    // 2) Vượt/hết ngân sách → cảnh báo cho chủ chiến dịch + admin (1 lần/ngày)
+    const budget = Number(existing.totalBudget || 0);
+    if (budget > 0 && Number(campaign.spent) >= budget && Number(existing.spent) < budget) {
+      if (!(await notifiedToday("ads_budget", id))) {
+        const msg = {
+          type: "ads_budget",
+          title: `⚠️ "${campaign.name}" đã hết ngân sách`,
+          content: `Đã chi ${Number(campaign.spent).toLocaleString("vi-VN")}đ / hạn mức ${budget.toLocaleString("vi-VN")}đ — cân nhắc tạm dừng hoặc tăng ngân sách.`,
+          link: "/dashboard/ads",
+          refId: id,
+        };
+        await safeNotify({ ...msg, userId: campaign.ownerId });
+        await notifyAdmins({ ...msg, exceptUserId: campaign.ownerId });
+      }
+    }
+  } catch {}
+
   return NextResponse.json(campaign);
 }
 

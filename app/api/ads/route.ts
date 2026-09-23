@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requirePermApi, getApiUser } from "@/lib/guard";
 import { prisma } from "@/lib/prisma";
+import { broadcastNotify } from "@/lib/notify";
 
 // GET /api/ads - List ads (all users with ads permission can see all)
 export async function GET(req: NextRequest) {
@@ -73,6 +74,15 @@ export async function POST(req: NextRequest) {
       notes: body.notes || null,
       ownerId: Number(user.id),
     },
+  });
+
+  // Thông báo CHUNG cho cả team: có chiến dịch quảng cáo mới
+  await broadcastNotify({
+    type: "ads",
+    title: `📣 Chiến dịch quảng cáo mới: ${campaign.name}`,
+    content: `${campaign.platform} • ngân sách ${Number(campaign.totalBudget || 0).toLocaleString("vi-VN")}đ — do ${user.name || "thành viên"} tạo`,
+    link: "/dashboard/ads",
+    refId: campaign.id,
   });
 
   return NextResponse.json(campaign, { status: 201 });

@@ -781,7 +781,8 @@ export default function SettingsPage() {
 
                 <div>
                   <label className="field-label">
-                    Cron Secret (cho cron ngoài, tuỳ chọn)
+                    Cron Secret (chỉ dùng khi muốn hẹn giờ từ dịch vụ ngoài —
+                    tuỳ chọn)
                   </label>
                   <div className="flex gap-2">
                     <div className="relative flex-1">
@@ -824,12 +825,14 @@ export default function SettingsPage() {
                     </button>
                   </div>
                   <p className="text-[11px] text-slate-400 mt-2">
-                    Hẹn giờ ngoài (VD cron-job.org) gọi:{" "}
+                    ✅ Tự động đã bật: server tự chạy các tác vụ mỗi 1 phút —
+                    thông báo đẩy ra ngay khi đến mốc,{" "}
+                    <b>không cần cron ngoài hay Cron Secret</b>. Vẫn có thể hẹn
+                    giờ từ dịch vụ ngoài (VD cron-job.org) gọi{" "}
                     <code className="text-[#1b98e0]">
                       GET /api/cron?key=CRON_SECRET
                     </code>{" "}
-                    mỗi ngày. Hoặc bấm "Chạy ngay" để chạy thủ công bất cứ lúc
-                    nào.
+                    nếu muốn, hoặc bấm &quot;Chạy ngay&quot; để chạy thủ công.
                   </p>
                 </div>
 

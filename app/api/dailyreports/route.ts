@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { canAccess, isAdminLike } from "@/lib/permissions";
+import { notifyEnabled, notifyAdmins } from "@/lib/notify";
 
 async function canViewAll(user: any): Promise<boolean> {
   return !!user && (canAccess(user, "users") || isAdminLike(user) || canAccess(user, "dailyreports_viewall"));
@@ -39,6 +40,16 @@ export async function POST(req: NextRequest) {
       await prisma.$executeRaw`UPDATE "DailyReport" SET "tasksDone" = ${tasksDone}, note = ${note}, "updatedAt" = ${new Date()} WHERE id = ${Number(existing[0].id)}`;
     } else {
       await prisma.$executeRaw`INSERT INTO "DailyReport" ("userId","userName",date,"tasksDone",note,"createdAt","updatedAt") VALUES (${uid},${uname},${date},${tasksDone},${note},${new Date()},${new Date()})`;
+
+      // Nộp báo cáo ngày LẦN ĐẦU → thông báo cho admin (nếu bật notifyReport trong Cài đặt)
+      if (await notifyEnabled("notifyReport")) {
+        await notifyAdmins({
+          type: "dailyreport",
+          title: `📝 ${uname} đã nộp báo cáo ngày ${date}`,
+          content: tasksDone.slice(0, 150),
+          link: "/dashboard/daily-reports",
+        });
+      }
     }
     return NextResponse.json({ ok: true });
   } catch (err) {

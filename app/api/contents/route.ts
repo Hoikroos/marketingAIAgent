@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requirePermApi, getApiUser } from "@/lib/guard";
 import { isAdminLike } from "@/lib/permissions";
 import { logActivity } from "@/lib/activity";
+import { notifyEnabled, broadcastNotify } from "@/lib/notify";
 
 /** GET — XEM CHUNG: trả toàn bộ nội dung của team (sửa/xoá vẫn chỉ tác giả hoặc admin) */
 export async function GET() {
@@ -37,6 +38,17 @@ export async function POST(req: NextRequest) {
                 tone: tone ? String(tone) : undefined,
             },
         });
+
+        // Thông báo CHUNG cho cả team khi có nội dung mới (nếu bật notifyContent trong Cài đặt)
+        if (await notifyEnabled("notifyContent")) {
+            await broadcastNotify({
+                type: "content",
+                title: `🆕 Nội dung mới: "${String(title)}"`,
+                content: `${String(platform)}${type ? " • " + String(type) : ""} — do ${user?.name || "thành viên"} tạo`,
+                link: "/dashboard/content",
+                refId: created.id,
+            });
+        }
 
         await logActivity("content", "create", `Tạo nội dung "${String(title)}" (${String(platform)})`);
         return NextResponse.json({ ok: true, content: created });

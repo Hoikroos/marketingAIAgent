@@ -25,6 +25,40 @@ const securityHeaders = [
 
 const nextConfig = {
   reactStrictMode: true,
+  // Bật instrumentation.ts: scheduler nội bộ chạy tác vụ tự động ngay trong server
+  // (nhắc đăng bài, follow-up lead, báo cáo tuần) — không cần cron ngoài + Cron Secret
+  experimental: {
+    instrumentationHook: true,
+    // web-push dùng module Node (http/https) — giữ nguyên outside bundle
+    serverComponentsExternalPackages: ["web-push"],
+  },
+  webpack: (config, { nextRuntime }) => {
+    // instrumentation.ts được bundle cho cả edge, nhưng các tác vụ tự động
+    // (web-push, prisma) CHỈ chạy trong Node.js. Thay module Node builtin
+    // bằng module rỗng trong bundle edge để build không lỗi.
+    if (nextRuntime === "edge") {
+      config.resolve = config.resolve || {};
+      config.resolve.fallback = {
+        ...(config.resolve.fallback || {}),
+        assert: false,
+        buffer: false,
+        crypto: false,
+        dns: false,
+        fs: false,
+        http: false,
+        https: false,
+        net: false,
+        path: false,
+        querystring: false,
+        stream: false,
+        tls: false,
+        url: false,
+        util: false,
+        zlib: false,
+      };
+    }
+    return config;
+  },
   // Ẩn header "X-Powered-By: Next.js" (giảm thông tin cho kẻ tấn công)
   poweredByHeader: false,
   async headers() {

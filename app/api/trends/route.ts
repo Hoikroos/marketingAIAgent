@@ -4,6 +4,7 @@ import { requirePermApi, getApiUser } from "@/lib/guard";
 import { isAdminLike } from "@/lib/permissions";
 import { logActivity } from "@/lib/activity";
 import { getAICfg, callAIChat } from "@/lib/aiConfig";
+import { notifyEnabled, safeNotify } from "@/lib/notify";
 
 // ---------------------------------------------------------------------------
 // Xu hướng BĐS — RIÊNG TỬNG NGƯỜI (owner): ai thu thập/nhập thì của người đó.
@@ -281,6 +282,18 @@ export async function POST(req: NextRequest) {
     try {
       await logActivity("trends", "create", "Thu thập trend: " + googleCount + " Google Trends, " + aiCount + " AI");
     } catch {}
+
+    // Thông báo cho người thu thập khi có trend mới (nếu bật notifyTrend trong Cài đặt)
+    const newTrends = googleCount + aiCount;
+    if (newTrends > 0 && uid && (await notifyEnabled("notifyTrend"))) {
+      await safeNotify({
+        userId: uid,
+        type: "trend",
+        title: `🔥 Phát hiện ${newTrends} trend mới`,
+        content: `Google Trends: ${googleCount} • AI gợi ý: ${aiCount} — mở tab Xu hướng để xem chi tiết.`,
+        link: "/dashboard/trends",
+      });
+    }
 
     return NextResponse.json({
       ok: true,

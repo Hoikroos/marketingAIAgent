@@ -1,11 +1,16 @@
 import { prisma } from "@/lib/prisma";
+import { notifyEnabled, broadcastUserId, notifiedToday, notifiedSince, notifiedEver, safeNotify } from "@/lib/notify";
 
 /**
- * TỰ ĐỘNG HOÁ — 3 tác vụ chạy định kỳ (bấm "Chạy ngay" trong Settings hoặc cron ngoài):
+ * TỰ ĐỘNG HOÁ — các tác vụ chạy định kỳ (scheduler nội bộ/instrumentation,
+ * nút "Chạy ngay" trong Settings hoặc cron ngoài):
  * 1. Nhắc đăng bài — 2 mốc: (a) 7h sáng các bài đăng trong ngày, (b) 30 phút trước giờ đăng
  *    → thông báo cho tác giả (mỗi mốc có chống trùng riêng) + đẩy Web Push ra thiết bị
  * 2. Follow-up lead cũ: lead chưa được liên hệ sau X ngày (Settings) → thông báo cho người phụ trách
  * 3. Báo cáo tuần: tổng hợp 7 ngày (leads, nội dung, chi tiêu ads) → thông báo chung
+ * 4. Task hết hạn hôm nay / quá hạn chưa hoàn thành → thông báo người được giao (1 lần/ngày)
+ * 5. Sự kiện lịch diễn ra hôm nay → thông báo cho chủ sự kiện (1 lần/ngày)
+ * 6. Nội dung viral (leads >= 5) → chúc mừng tác giả (1 lần duy nhất mỗi content)
  * Mỗi tác vụ có cơ chế chống trùng: chỉ tạo 1 thông báo cùng loại/ngày.
  */
 
@@ -20,37 +25,20 @@ async function getSettingValue(key: string, def: string): Promise<string> {
 
 /** User đại diện "Hệ thống" — thông báo chung hiển thị cho tất cả */
 export async function getBroadcastUserId(): Promise<number> {
-  let u = await prisma.user.findUnique({ where: { email: "system@company.vn" } });
-  if (!u) {
-    u = await prisma.user.create({
-      data: { name: "Hệ thống", email: "system@company.vn", role: "Marketing", active: false, permissions: "[]" },
-    });
-  }
-  return u.id;
+  return broadcastUserId();
 }
 
-async function notifiedToday(type: string, refId?: number): Promise<boolean> {
-  const start = new Date();
-  start.setHours(0, 0, 0, 0);
-  const n = await prisma.notification.findFirst({
-    where: { type, ...(refId ? { refId } : {}), createdAt: { gte: start } },
-  });
-  return !!n;
-}
-
-/** Đã gửi thông báo cùng loại/refId trong khoảng {minutes} phút gần đây? (chống trùng khi cron chạy dày) */
-async function notifiedSince(type: string, refId: number, minutes: number): Promise<boolean> {
-  const since = new Date(Date.now() - minutes * 60_000);
-  const n = await prisma.notification.findFirst({
-    where: { type, refId, createdAt: { gte: since } },
-  });
-  return !!n;
-}
-
-export type AutomationResults = { reminders: number; followups: number; weekly: boolean };
+export type AutomationResults = {
+  reminders: number;
+  followups: number;
+  weekly: boolean;
+  taskDeadlines: number;
+  calendarEvents: number;
+  viral: number;
+};
 
 export async function runAllJobs(): Promise<AutomationResults> {
-  const res: AutomationResults = { reminders: 0, followups: 0, weekly: false };
+  const res: AutomationResults = { reminders: 0, followups: 0, weekly: false, taskDeadlines: 0, calendarEvents: 0, viral: 0 };
   const broadcastId = await getBroadcastUserId();
   const now = new Date();
 
@@ -160,6 +148,89 @@ export async function runAllJobs(): Promise<AutomationResults> {
         },
       });
       res.weekly = true;
+    }
+  }
+
+  // ---- Job 4: Task hết hạn hôm nay / đã quá hạn mà chưa hoàn thành ----
+  {
+    const endToday = new Date(now);
+    endToday.setHours(23, 59, 59, 999);
+    const tasks = await prisma.task.findMany({
+      where: { deadline: { lte: endToday }, NOT: { status: { contains: "hoàn thành" } } },
+    });
+    const startToday = new Date(now);
+    startToday.setHours(0, 0, 0, 0);
+    for (const t of tasks) {
+      const deadline = t.deadline ? new Date(t.deadline) : null;
+      if (!deadline) continue;
+      // Chỉ quan tâm: hết hạn hôm nay, hoặc đã quá hạn (quá hạn > 7 ngày thì bỏ — cũ quá)
+      const overdueDays = Math.floor((startToday.getTime() - deadline.getTime()) / 86400000);
+      const dueToday = deadline >= startToday && deadline <= endToday;
+      const overdue = overdueDays > 0 && overdueDays <= 7;
+      if (!dueToday && !overdue) continue;
+      // Gửi cho từng người được giao
+      const assignees = (t.assignee || "").split(" · ").map((s) => s.trim()).filter(Boolean);
+      for (const nm of assignees) {
+        const u = await prisma.user.findFirst({ where: { name: { equals: nm }, active: true }, select: { id: true } });
+        if (!u) continue;
+        if (await notifiedToday("task_deadline", t.id)) continue;
+        const when = deadline.toLocaleDateString("vi-VN");
+        await safeNotify({
+          userId: u.id,
+          type: "task_deadline",
+          title: overdue ? `⏰ Đã quá hạn: "${t.title}"` : `⏰ Hết hạn hôm nay: "${t.title}"`,
+          content: overdue
+            ? `Deadline ${when} — trễ ${overdueDays} ngày. Ưu tiên xử lý hoặc cập nhật tiến độ!`
+            : `Deadline là hôm nay (${when})${t.priority ? " — ưu tiên: " + t.priority : ""}.`,
+          refId: t.id,
+          link: "/dashboard/team",
+        });
+        res.taskDeadlines++;
+      }
+    }
+  }
+
+  // ---- Job 5: Sự kiện lịch diễn ra hôm nay → nhắc chủ sự kiện ----
+  {
+    const startToday = new Date(now);
+    startToday.setHours(0, 0, 0, 0);
+    const endToday = new Date(startToday.getTime() + 24 * 3600 * 1000);
+    const events = await prisma.calendarEvent.findMany({
+      where: { eventDate: { gte: startToday, lt: endToday } },
+    });
+    for (const ev of events) {
+      if (await notifiedToday("calendar_event", ev.id)) continue;
+      const when = new Date(ev.eventDate).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+      await safeNotify({
+        userId: ev.userId,
+        type: "calendar_event",
+        title: `📅 Hôm nay: "${ev.title}"`,
+        content: `Sự kiện diễn ra hôm nay${when ? " lúc " + when : ""} — chuẩn bị nhé!`,
+        refId: ev.id,
+        link: "/dashboard/calendar",
+      });
+      res.calendarEvents++;
+    }
+  }
+
+  // ---- Job 6: Nội dung viral (leads >= 5) → chúc mừng tác giả + thông báo chung ----
+  if ((await notifyEnabled("notifyViral"))) {
+    const viralContents = await prisma.content.findMany({
+      where: { leads: { gte: 5 } },
+      orderBy: { leads: "desc" },
+      take: 10,
+    });
+    for (const c of viralContents) {
+      if (await notifiedEver("viral", c.id)) continue; // mỗi content chỉ báo 1 lần
+      await safeNotify({
+        userId: c.authorId ?? broadcastId,
+        type: "viral",
+        title: `🎉 "${c.title}" đang viral!`,
+        content: `Đã mang về ${c.leads} leads • ${c.views.toLocaleString("vi-VN")} views trên ${c.platform}. Tiếp tục phát huy!`,
+        refId: c.id,
+        link: "/dashboard/content",
+      });
+      res.viral++;
     }
   }
 
