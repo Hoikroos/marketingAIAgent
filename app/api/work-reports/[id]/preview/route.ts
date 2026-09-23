@@ -3,93 +3,13 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { canAccess, isAdminLike } from "@/lib/permissions";
 import { readFileStored } from "@/lib/storage";
-import { inflateRawSync } from "zlib";
+import { extractDocxParagraphs } from "@/lib/docx";
 
 async function canView(user: any, report: any) {
   if (!user) return false;
   if (canAccess(user, "users") || isAdminLike(user)) return true;
   const isOwner = Number(report.employeeId) === Number(user.id);
   return isOwner && canAccess(user, "reports_work_download");
-}
-
-function decodeEntities(s: string): string {
-  return s
-    .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => String.fromCodePoint(parseInt(h, 16)))
-    .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(parseInt(d, 10)))
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&apos;/g, "'");
-}
-
-/** Trích các ĐOẠN VĂN từ file .docx (bố cục giống bản Word) mà KHÔNG cần thư viện ngoài:
- *  - tìm EOCD (0x06054b50) để lấy offset central directory
- *  - duyệt central file header (0x02014b50) tìm "word/document.xml"
- *  - giải nén entry bằng zlib (method 8 = deflate, 0 = stored)
- *  - duyệt từng <w:p> (đoạn) → gom văn bản trong <w:t>, nhận biết gạch đầu dòng */
-function extractDocxParagraphs(buf: Buffer): string[] {
-  const findEocd = (b: Buffer) => {
-    const start = Math.max(0, b.length - 65557);
-    for (let i = b.length - 22; i >= start; i--) {
-      if (b.readUInt32LE(i) === 0x06054b50) return i;
-    }
-    return -1;
-  };
-
-  const eocd = findEocd(buf);
-  if (eocd === -1) return [];
-  const cdOffset = buf.readUInt32LE(eocd + 16);
-  const cdSize = buf.readUInt32LE(eocd + 12);
-  if (cdOffset <= 0 || cdSize <= 0) return [];
-
-  let p = cdOffset;
-  const cdEnd = cdOffset + cdSize;
-  let method = 0;
-  let compSize = 0;
-  let localOffset = 0;
-
-  while (p + 46 <= cdEnd) {
-    if (buf.readUInt32LE(p) !== 0x02014b50) break;
-    const nameLen = buf.readUInt16LE(p + 28);
-    const extraLen = buf.readUInt16LE(p + 30);
-    const commentLen = buf.readUInt16LE(p + 32);
-    const name = buf.slice(p + 46, p + 46 + nameLen).toString("utf8");
-    if (name === "word/document.xml") {
-      method = buf.readUInt16LE(p + 10);
-      compSize = buf.readUInt32LE(p + 20);
-      localOffset = buf.readUInt32LE(p + 42);
-      break;
-    }
-    p += 46 + nameLen + extraLen + commentLen;
-  }
-  if (!localOffset) return [];
-
-  const nameLen = buf.readUInt16LE(localOffset + 26);
-  const extraLen = buf.readUInt16LE(localOffset + 28);
-  const dataStart = localOffset + 30 + nameLen + extraLen;
-
-  let raw: Buffer;
-  if (method === 0) raw = buf.subarray(dataStart, dataStart + compSize);
-  else if (method === 8) raw = inflateRawSync(buf.subarray(dataStart, dataStart + compSize));
-  else return [];
-
-  const str = raw.toString("utf8");
-  const paras: string[] = [];
-  const pRe = /<w:p\b[^>]*>([\s\S]*?)<\/w:p>/g;
-  const tRe = /<w:t\b[^>]*>([\s\S]*?)<\/w:t>/g;
-  let pm: RegExpExecArray | null;
-  while ((pm = pRe.exec(str))) {
-    const block = pm[1];
-    const isList = /<w:numPr\b/i.test(block);
-    let text = "";
-    const local = new RegExp(tRe.source, tRe.flags);
-    let tm: RegExpExecArray | null;
-    while ((tm = local.exec(block))) text += decodeEntities(tm[1]);
-    text = text.trim();
-    if (text) paras.push(isList ? "• " + text : text);
-  }
-  return paras;
 }
 
 /** Xem trước nội dung file báo cáo (admin hoặc chính nhân viên, cần quyền download) */

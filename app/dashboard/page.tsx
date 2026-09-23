@@ -2,6 +2,8 @@ import { requirePerm } from "@/lib/guard";
 import DashboardLayout from "@/components/layout";
 import { Kpi, Status } from "@/components/ui";
 import { ReportChart } from "@/components/charts";
+import GeneralReportPanel from "@/components/GeneralReportPanel";
+import { Suspense } from "react";
 import {
   Eye,
   Heart,
@@ -67,6 +69,7 @@ export default async function Dashboard() {
   const canSocial = canAccess(user, "social");
   const canTrends = canAccess(user, "trends");
   const canTeam = canAccess(user, "team");
+  const canManageReports = isAdminLike(user) || canAccess(user, "users") || canAccess(user, "reports_work_create");
 
   const contentScope = isAdminLike(user) ? undefined : Number(user?.id) || 0;
   const trendScope = isAdminLike(user) ? {} : { ownerId: Number(user?.id) || 0 };
@@ -414,6 +417,11 @@ export default async function Dashboard() {
           )}
         </div>
       </div>
+
+      {/* BÁO CÁO CHUNG THÁNG — AI tổng hợp báo cáo tuần của từng nhân viên */}
+      <Suspense fallback={null}>
+        <GeneralReportPanel canManage={canManageReports} currentUserId={user ? Number(user.id) : undefined} />
+      </Suspense>
     </DashboardLayout>
   );
 }

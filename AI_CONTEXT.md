@@ -148,6 +148,7 @@ Client luôn kiểm tra `res.ok && data.ok`. **Route ghi dữ liệu PHẢI gọ
 | `/api/auth/[...nextauth]` | NextAuth handler | GET/POST |
 | `/api/auth/lock-status` + `/api/auth/reset-password` | Trạng thái khóa đăng nhập + đặt lại mật khẩu (công khai) | GET/POST |
 | `/api/work-reports` (+`/[id]/upload`, `/[id]/file`, `/[id]/preview`, `/export`) | Báo cáo công việc: giao/nộp/tải/xem trước/xuất | GET/POST/PATCH/DELETE |
+| `/api/work-reports/general` | **BÁO CÁO CHUNG tháng**: GET trả dữ liệu tổng hợp theo tuần/nhân viên (Dashboard); POST `{year, month, mode: "synthesize"|"word"}` — chạy AI tổng hợp (lib/monthlyReport.ts), cache vào Setting `generalReport_<Y>-<MM>`, mode "word" trả file .docx (lib/docx.ts tự dựng ZIP, không cần lib ngoài) | GET/POST |
 | `/api/dailyreports` | Nhật ký công việc hằng ngày | GET/POST/PATCH |
 | `/api/notifications` (+`/upload`, `/[id]/file`) | Thông báo + file đính kèm (lưu DB) | GET/POST |
 | `/api/assistant` + `/api/assistant/history` + `/api/assistant/settings` + `/api/assistant/upload` | Trợ lý AI (stream NDJSON) + lịch sử + cài đặt + upload đính kèm | GET/POST/PATCH/PUT/DELETE |
@@ -245,6 +246,8 @@ Client luôn kiểm tra `res.ok && data.ok`. **Route ghi dữ liệu PHẢI gọ
 - `components/db.ts` và nhiều chỗ dùng `as any` — cẩn thận khi thêm field Prisma mới.
 - `Trend.source = "ai"` — trend thu thập tự động; trend thủ công là `"manual"`.
 - Trang `work-stats` (Thống kê công việc) tổng hợp theo tuần/tháng/quý/năm từ ActivityLog + các model trạng thái — nếu thêm nguồn dữ liệu mới, cập nhật `components/WorkStatsBoard.tsx`.
+- Trang `leads` có khối "SỐ LƯỢNG KHÁCH THEO TUẦN/THÁNG" (`components/LeadsTimeStats.tsx`, biểu đồ recharts xếp lớp theo trạng thái + bảng số liệu) — server page gom theo cửa sổ thời gian (tuần bắt đầu thứ Hai như `lib/automation.ts`, tái dùng `periodKey/periodLabel` của `lib/workStats.ts`), dữ liệu query TOÀN BỘ lead (không giới hạn 200 dòng như LeadsTable).
+- **Báo cáo chung tháng** (`lib/monthlyReport.ts` + `/api/work-reports/general` + `components/GeneralReportPanel.tsx` trên Dashboard): gom theo tuần của tháng — báo cáo công việc nộp (đọc text .docx bằng `extractDocxParagraphs` từ `lib/docx.ts`, file lưu StoredFile), nhật ký ngày (`DailyReport.date` dạng "YYYY-MM-DD"), nội dung/lead/task/MXH. AI tổng hợp từng nhân viên (prompt + parse nhãn `[TUẦN ...]`) với fallback mẫu tự động khi thiếu key/lỗi; kết quả cache ở Setting key `generalReport_<Y>-<MM>` (không thêm model mới). Quyền: GET ai cũng xem được (nhân viên chỉ thấy phần mình), POST chỉ Admin/quản lý (`isAdminLike`/`users`/`reports_work_create`). File Word tạo bằng `buildDocx` — đã kiểm chứng round-trip bằng `scripts/test-docx.ts` (`npx tsx scripts/test-docx.ts`).
 - `AI_CONTEXT.md` cần được cập nhật KÈM THEO mọi thay đổi lớn của source (model mới, route mới, trang mới).
 
 
