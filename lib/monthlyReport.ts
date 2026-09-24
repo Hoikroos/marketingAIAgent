@@ -9,6 +9,7 @@ import { periodKey, periodLabel } from "@/lib/workStats";
 import { getAICfg, callAIChat, type AICfg } from "@/lib/aiConfig";
 import { readFileStored } from "@/lib/storage";
 import { extractDocxParagraphs, type DocxPara } from "@/lib/docx";
+import { splitSentences } from "@/lib/textLines";
 
 export const GENERAL_CACHE_PREFIX = "generalReport_";
 const TRUNC_FILE = 1400; // ký tự tối đa lấy từ 1 file báo cáo nộp
@@ -293,11 +294,12 @@ function empPrompt(emp: EmpMonth, data: MonthData): string {
     lines.push(`- Số liệu: ${x.contents} nội dung mới (${x.contentViews} views, ${x.contentLeads} lead về); ${x.leads} khách mới (${x.leadsWon} đã chốt); ${x.tasksDone} công việc hoàn thành; MXH ${x.socialViews} views / ${x.socialVideos} video đăng`);
   }
   lines.push("", `Yêu cầu — trả về ĐÚNG định dạng sau (không dùng markdown, không thêm mục khác):
+MỖI Ý VIẾT TRÊN MỘT DÒNG RIÊNG, mỗi dòng bắt đầu bằng "- " (KHÔNG dồn nhiều ý vào 1 dòng dài) để báo cáo dễ đọc.
 TỔNG QUAN THÁNG:
-<2-4 câu đánh giá kết quả tháng của nhân viên: việc đã làm, kết quả nổi bật, tồn tại và đề xuất>
+<2-4 dòng đánh giá kết quả tháng của nhân viên: việc đã làm, kết quả nổi bật, tồn tại và đề xuất>
 Rồi với MỖI tuần ở trên (giữ nguyên nhãn tuần), viết:
 [TUẦN <nhãn tuần như trên>]
-<2-3 câu tóm tắt tuần: việc đã làm, kết quả, tồn tại>`);
+<2-3 dòng tóm tắt tuần: việc đã làm, kết quả, tồn tại>`);
   return lines.join("\n");
 }
 
@@ -316,8 +318,8 @@ function parseEmpSummary(text: string, weeks: WeekRow[]) {
   return out;
 }
 
-/** Dòng mô tả số liệu 1 tuần của nhân viên (dùng trong fallback + file Word) */
-function weekLine(x: EmpWeek): string {
+/** Số liệu 1 tuần của nhân viên → TỪNG chỉ số 1 dòng (hiển thị + file Word đều xuống hàng) */
+function weekLineItems(x: EmpWeek): string[] {
   const parts: string[] = [];
   if (x.files.length) parts.push(`nộp ${x.files.length} báo cáo`);
   if (x.dailyCount) parts.push(`${x.dailyCount} nhật ký ngày`);
@@ -325,11 +327,11 @@ function weekLine(x: EmpWeek): string {
   if (x.leads) parts.push(`${x.leads} khách mới (${x.leadsWon} đã chốt)`);
   if (x.tasksDone) parts.push(`${x.tasksDone} công việc hoàn thành`);
   if (x.socialViews || x.socialVideos) parts.push(`MXH ${x.socialViews} views / ${x.socialVideos} video`);
-  return parts.length ? parts.join(" · ") : "Không ghi nhận hoạt động";
+  return parts;
 }
 
-/** Dòng mô tả số liệu của 1 kỳ cho cả nhóm */
-function teamLine(t: Partial<TeamWeek> & { reportsTotal?: number; reportsSubmitted?: number }): string {
+/** Số liệu của 1 kỳ cho cả nhóm → TỪNG chỉ số 1 dòng */
+function teamLineItems(t: Partial<TeamWeek> & { reportsTotal?: number; reportsSubmitted?: number }): string[] {
   const parts: string[] = [];
   if (t.leads) parts.push(`${t.leads} khách hàng mới (${t.leadsWon || 0} đã chốt)`);
   if (t.contents) parts.push(`${t.contents} nội dung (${t.contentViews || 0} views, ${t.contentLeads || 0} lead)`);
@@ -338,6 +340,12 @@ function teamLine(t: Partial<TeamWeek> & { reportsTotal?: number; reportsSubmitt
   if (t.files) parts.push(`${t.files} báo cáo nộp file`);
   if (t.reportsTotal != null) parts.push(`tỷ lệ nộp báo cáo ${t.reportsTotal ? Math.round(((t.reportsSubmitted || 0) / t.reportsTotal) * 100) : 0}%`);
   if (t.socialViews || t.socialVideos) parts.push(`MXH ${t.socialViews || 0} views / ${t.socialVideos || 0} video`);
+  return parts;
+}
+
+/** Dòng mô tả số liệu của 1 kỳ cho cả nhóm (gộp 1 dòng — dùng cho prompt AI) */
+function teamLine(t: Partial<TeamWeek> & { reportsTotal?: number; reportsSubmitted?: number }): string {
+  const parts = teamLineItems(t);
   return parts.length ? parts.join(" · ") : "Không ghi nhận hoạt động";
 }
 
@@ -443,9 +451,45 @@ export async function synthesizeMonth(data: MonthData, generatedBy: string): Pro
   return cache;
 }
 
+/**
+ * Bản tổng hợp KHÔNG gọi AI (dùng mẫu tự động) — dùng khi người dùng chỉ có quyền
+ * TẢI file Word (không có quyền tổng hợp AI) và tháng đó chưa có bản AI nào trong cache.
+ */
+export function fallbackCache(data: MonthData, generatedBy: string): GeneralCache {
+  const cache: GeneralCache = {
+    overall: fallbackTeam(data),
+    employees: {},
+    provider: "",
+    model: "",
+    generatedAt: new Date().toISOString(),
+    generatedBy,
+    aiUsed: false,
+  };
+  for (const emp of data.employees) {
+    const slot = { overall: fallbackOverall(emp, data), weeks: {} as Record<string, string> };
+    for (const w of data.weeks) slot.weeks[w.key] = fallbackWeekSummary(emp, w.key, data);
+    cache.employees[String(emp.userId)] = slot;
+  }
+  return cache;
+}
+
 // ===========================================================================
 // DỰNG NỘI DUNG FILE WORD "BÁO CÁO CHUNG THÁNG"
 // ===========================================================================
+
+/** Đẩy 1 đoạn văn (AI/fallback) vào file Word — MỖI CÂU 1 ĐOẠN để dễ đọc */
+function pushText(P: DocxPara[], text: string, style: DocxPara["style"] = "body") {
+  for (const line of splitSentences(text)) P.push({ text: line, style });
+}
+
+/** Đẩy số liệu vào file Word — MỖI CHỈ SỐ 1 GẠCH ĐẦU DÒNG (xuống hàng) */
+function pushStats(P: DocxPara[], items: string[]) {
+  if (!items.length) {
+    P.push({ text: "Không ghi nhận hoạt động", style: "bullet" });
+    return;
+  }
+  for (const it of items) P.push({ text: it, style: "bullet" });
+}
 
 export function buildDocxParas(data: MonthData, cache: GeneralCache): DocxPara[] {
   const P: DocxPara[] = [];
@@ -460,26 +504,28 @@ export function buildDocxParas(data: MonthData, cache: GeneralCache): DocxPara[]
   });
 
   P.push({ text: "I. TỔNG QUAN", style: "h1" });
-  P.push({ text: cache.overall, style: "body" });
-  P.push({ text: `Số liệu tháng: ${teamLine(data.teamTotals)}`, style: "bullet" });
+  pushText(P, cache.overall);
+  P.push({ text: "Số liệu tháng:", style: "meta" });
+  pushStats(P, teamLineItems(data.teamTotals));
 
   P.push({ text: "II. KẾT QUẢ THEO TUẦN", style: "h1" });
   for (const w of data.weeks) {
     P.push({ text: `${w.label} (${w.range})`, style: "h2" });
-    P.push({ text: teamLine(data.teamWeeks[w.key]), style: "body" });
+    pushStats(P, teamLineItems(data.teamWeeks[w.key]));
   }
 
   P.push({ text: "III. CHI TIẾT THEO NHÂN VIÊN", style: "h1" });
   for (const e of data.employees) {
     const slot = cache.employees[String(e.userId)];
     P.push({ text: `${e.name}${e.jobTitle ? " — " + e.jobTitle : ""}`, style: "h2" });
-    P.push({ text: slot?.overall || fallbackOverall(e, data), style: "body" });
+    pushText(P, slot?.overall || fallbackOverall(e, data));
     for (const w of data.weeks) {
       const x = e.weeks[w.key];
       P.push({ text: `${w.label} (${w.range})`, style: "h3" });
-      P.push({ text: slot?.weeks?.[w.key] || fallbackWeekSummary(e, w.key, data), style: "body" });
-      P.push({ text: `Số liệu: ${weekLine(x)}`, style: "meta" });
-      if (x.files.length) P.push({ text: `Báo cáo đã nộp: ${x.files.map((f) => f.title).join("; ")}`, style: "meta" });
+      pushText(P, slot?.weeks?.[w.key] || fallbackWeekSummary(e, w.key, data));
+      P.push({ text: "Số liệu tuần:", style: "meta" });
+      pushStats(P, weekLineItems(x));
+      for (const f of x.files) P.push({ text: `Báo cáo đã nộp: ${f.title}`, style: "meta" });
     }
   }
 

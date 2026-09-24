@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useToast } from "./toast";
 import { Spinner, EmptyState } from "./ui";
 import { Sparkles, Download, ChevronLeft, ChevronRight, CalendarDays, FileText } from "./icons";
+import { splitSentences } from "@/lib/textLines";
 
 type EmpWeekPublic = {
   dailyCount: number;
@@ -51,21 +52,52 @@ type GeneralData = {
   cacheInfo: { provider: string; model: string; generatedAt: string; generatedBy: string } | null;
 };
 
-const fmt = (n: number) => (n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 1000 ? `${(n / 1000).toFixed(1)}K` : String(n));
-
-/** Dòng mô tả số liệu của 1 kỳ (nhân viên hoặc nhóm) */
-function numsLine(x: Record<string, number>, withDaily = true) {
+/** Số liệu của 1 kỳ (nhân viên hoặc nhóm) → TỪNG chỉ số 1 dòng cho dễ đọc */
+function statsItems(x: Record<string, number>, withDaily = true): string[] {
   const parts: string[] = [];
   if (x.files) parts.push(`${x.files} báo cáo nộp`);
-  if (withDaily && x.daily) parts.push(`${x.daily} nhật ký`);
+  if (withDaily && x.daily) parts.push(`${x.daily} nhật ký ngày`);
   if (x.contents) parts.push(`${x.contents} nội dung (${x.contentViews} views, ${x.contentLeads} lead)`);
   if (x.leads) parts.push(`${x.leads} khách mới (${x.leadsWon} chốt)`);
   if (x.tasksDone) parts.push(`${x.tasksDone} việc hoàn thành`);
   if (x.socialViews || x.socialVideos) parts.push(`MXH ${x.socialViews} views / ${x.socialVideos} video`);
-  return parts.length ? parts.join(" · ") : "Không ghi nhận hoạt động";
+  return parts;
 }
 
-export default function GeneralReportPanel({ canManage, currentUserId }: { canManage: boolean; currentUserId?: number }) {
+/** Danh sách số liệu — mỗi chỉ số XUỐNG 1 HÀNG riêng (không dồn vào 1 hàng dài) */
+function StatLines({ items, empty = "Không ghi nhận hoạt động", className = "" }: { items: string[]; empty?: string; className?: string }) {
+  if (!items.length) return <div className={`text-[11px] text-slate-500 ${className}`}>{empty}</div>;
+  return (
+    <ul className={`space-y-1 ${className}`}>
+      {items.map((t, i) => (
+        <li key={i} className="flex items-start gap-1.5 text-[11px] leading-snug">
+          <span className="mt-[6px] h-1 w-1 rounded-full bg-slate-500 shrink-0" />
+          <span>{t}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** Nội dung tổng hợp (AI/mẫu tự động) — mỗi câu XUỐNG 1 DÒNG riêng */
+function TextLines({ text, className = "", size = "text-[12px]" }: { text: string; className?: string; size?: string }) {
+  const lines = splitSentences(text);
+  if (!lines.length) return null;
+  return (
+    <div className={`space-y-1.5 ${className}`}>
+      {lines.map((l, i) => (
+        <p key={i} className={`${size} leading-relaxed`}>{l}</p>
+      ))}
+    </div>
+  );
+}
+
+/** Nhãn nhỏ cho từng nhóm nội dung trong thẻ nhân viên */
+function GroupLabel({ children }: { children: React.ReactNode }) {
+  return <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">{children}</div>;
+}
+
+export default function GeneralReportPanel({ canSynthesize, canExportWord }: { canSynthesize: boolean; canExportWord: boolean }) {
   const toast = useToast();
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
@@ -181,18 +213,44 @@ export default function GeneralReportPanel({ canManage, currentUserId }: { canMa
       <div className="text-[11px] text-slate-400 mt-1 mb-3">
         {data?.aiUsed
           ? `AI đã tổng hợp${data.cacheInfo ? ` · ${data.cacheInfo.provider}${data.cacheInfo.generatedAt ? ` · lúc ${new Date(data.cacheInfo.generatedAt).toLocaleString("vi-VN")}` : ""}${data.cacheInfo.generatedBy ? ` · bởi ${data.cacheInfo.generatedBy}` : ""}` : ""}`
-          : 'Chưa tổng hợp bằng AI — bấm "Tổng hợp bằng AI" để có nhận xét chi tiết cho từng nhân viên.'}
+          : canSynthesize
+            ? 'Chưa tổng hợp bằng AI — bấm "Tổng hợp bằng AI" để có nhận xét chi tiết cho từng nhân viên.'
+            : "Chưa có bản tổng hợp AI cho tháng này — nội dung bên dưới là mẫu tổng hợp tự động từ số liệu hệ thống."}
       </div>
 
-      {/* Nút hành động (chỉ quản lý) */}
-      {canManage && (
+      {/* Nút hành động — MỖI NÚT 1 QUYỀN RIÊNG (xem lib/permissions.ts) */}
+      {canSynthesize || canExportWord ? (
         <div className="flex flex-wrap items-center gap-2 mb-4">
-          <button onClick={synthesize} disabled={busySynth} className="btn-ghost text-xs rounded-xl" type="button" title="AI đọc báo cáo tuần + nhật ký của từng nhân viên và viết nhận xét">
-            {busySynth ? <Spinner size={13} /> : <Sparkles size={13} />} {busySynth ? "Đang tổng hợp AI..." : "Tổng hợp bằng AI"}
-          </button>
-          <button onClick={downloadWord} disabled={busyWord} className="btn-primary text-xs rounded-xl" type="button" title="Tổng hợp lại và tải file Word Báo cáo chung tháng">
-            {busyWord ? <Spinner size={13} /> : <Download size={13} />} {busyWord ? "Đang tạo file..." : "Tải file Word (Báo cáo chung)"}
-          </button>
+          {canSynthesize ? (
+            <button
+              onClick={synthesize}
+              disabled={busySynth}
+              className="btn-ghost text-xs rounded-xl"
+              type="button"
+              title='AI đọc báo cáo tuần + nhật ký của từng nhân viên và viết nhận xét (quyền "Tổng hợp Báo cáo chung (AI)")'
+            >
+              {busySynth ? <Spinner size={13} /> : <Sparkles size={13} />} {busySynth ? "Đang tổng hợp AI..." : "Tổng hợp bằng AI"}
+            </button>
+          ) : (
+            <span className="text-[11px] text-slate-500">
+              Bạn không có quyền tổng hợp bằng AI — nội dung đang xem là bản tổng hợp gần nhất (hoặc mẫu tự động).
+            </span>
+          )}
+          {canExportWord && (
+            <button
+              onClick={downloadWord}
+              disabled={busyWord}
+              className="btn-primary text-xs rounded-xl"
+              type="button"
+              title='Tải file Word Báo cáo chung tháng (quyền "Tải Báo cáo chung (file Word)")'
+            >
+              {busyWord ? <Spinner size={13} /> : <Download size={13} />} {busyWord ? "Đang tạo file..." : "Tải file Word (Báo cáo chung)"}
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="text-[11px] text-slate-500 mb-4">
+          Bạn được xem báo cáo tổng hợp của phòng. Việc tổng hợp bằng AI và tải file Word do Admin/quản lý (hoặc người được cấp quyền) thực hiện.
         </div>
       )}
 
@@ -233,7 +291,10 @@ function GeneralReportBody({ data, activeWeek }: { data: GeneralData; activeWeek
           <CalendarDays size={12} className="text-[#1b98e0]" />
           <b>{activeWeek.label}</b>
           <span className="text-slate-500">({activeWeek.range})</span>
-          <span className="ml-auto text-[11px] text-slate-400">{numsLine(activeWeek.team as any)}</span>
+        </div>
+        <div className="mt-2.5">
+          <GroupLabel>Số liệu cả phòng trong tuần</GroupLabel>
+          <StatLines items={statsItems(activeWeek.team as any)} className="text-slate-300" />
         </div>
       </div>
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
@@ -242,7 +303,7 @@ function GeneralReportBody({ data, activeWeek }: { data: GeneralData; activeWeek
           if (!x) return null;
           return (
             <div key={e.userId} className="p-4 bg-[var(--panel2)] rounded-xl border border-[var(--border-soft)]">
-              <div className="flex items-center gap-2 mb-1.5">
+              <div className="flex items-center gap-2">
                 <div className="h-8 w-8 rounded-lg bg-violet-500/15 text-violet-300 grid place-items-center text-xs font-black shrink-0">
                   {e.name.slice(0, 1).toUpperCase()}
                 </div>
@@ -250,13 +311,29 @@ function GeneralReportBody({ data, activeWeek }: { data: GeneralData; activeWeek
                   <div className="text-xs font-bold truncate">{e.name}</div>
                   {e.jobTitle && <div className="text-[10px] text-slate-500 truncate">{e.jobTitle}</div>}
                 </div>
-                <span className="ml-auto text-[10px] text-slate-400 shrink-0">{numsLine(x as any, false)}</span>
               </div>
-              <p className="text-[12px] leading-relaxed text-slate-300 whitespace-pre-line">{x.summary}</p>
+
+              <div className="mt-3">
+                <GroupLabel>Nhận xét trong tuần</GroupLabel>
+                <TextLines text={x.summary} className="text-slate-300" />
+              </div>
+
+              <div className="mt-3">
+                <GroupLabel>Số liệu tuần</GroupLabel>
+                <StatLines items={statsItems(x as any, false)} className="text-slate-400" />
+              </div>
+
               {x.fileTitles.length > 0 && (
-                <div className="flex items-start gap-1.5 mt-2 text-[10px] text-slate-500">
-                  <FileText size={11} className="mt-0.5 shrink-0" />
-                  <span className="truncate">{x.fileTitles.join("; ")}</span>
+                <div className="mt-3">
+                  <GroupLabel>Báo cáo đã nộp ({x.fileTitles.length})</GroupLabel>
+                  <ul className="space-y-1">
+                    {x.fileTitles.map((t, i) => (
+                      <li key={i} className="flex items-start gap-1.5 text-[10px] text-slate-500 leading-snug">
+                        <FileText size={11} className="mt-0.5 shrink-0" />
+                        <span className="break-words">{t}</span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               )}
             </div>
@@ -268,14 +345,17 @@ function GeneralReportBody({ data, activeWeek }: { data: GeneralData; activeWeek
     <>
       {/* === XEM CẢ THÁNG === */}
       <div className="p-4 bg-[var(--panel2)] rounded-xl mb-4">
-        <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">Tổng quan cả phòng</div>
-        <p className="text-[12.5px] leading-relaxed text-slate-200 whitespace-pre-line">{data.overall}</p>
-        <div className="text-[11px] text-slate-400 mt-2">{numsLine(data.teamTotals as any)}</div>
+        <GroupLabel>Tổng quan cả phòng</GroupLabel>
+        <TextLines text={data.overall} className="text-slate-200" size="text-[12.5px]" />
+        <div className="mt-3 pt-3 border-t border-[var(--border-soft)]">
+          <GroupLabel>Số liệu cả tháng</GroupLabel>
+          <StatLines items={statsItems(data.teamTotals as any)} className="text-slate-400" />
+        </div>
       </div>
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
         {data.employees.map((e) => (
           <div key={e.userId} className="p-4 bg-[var(--panel2)] rounded-xl border border-[var(--border-soft)]">
-            <div className="flex items-center gap-2 mb-1.5">
+            <div className="flex items-center gap-2">
               <div className="h-8 w-8 rounded-lg bg-violet-500/15 text-violet-300 grid place-items-center text-xs font-black shrink-0">
                 {e.name.slice(0, 1).toUpperCase()}
               </div>
@@ -283,9 +363,17 @@ function GeneralReportBody({ data, activeWeek }: { data: GeneralData; activeWeek
                 <div className="text-xs font-bold truncate">{e.name}</div>
                 {e.jobTitle && <div className="text-[10px] text-slate-500 truncate">{e.jobTitle}</div>}
               </div>
-              <span className="ml-auto text-[10px] text-slate-500 shrink-0">{numsLine(e.totals as any)}</span>
             </div>
-            <p className="text-[12px] leading-relaxed text-slate-300 whitespace-pre-line">{e.overall}</p>
+
+            <div className="mt-3">
+              <GroupLabel>Tổng quan tháng</GroupLabel>
+              <TextLines text={e.overall} className="text-slate-300" />
+            </div>
+
+            <div className="mt-3">
+              <GroupLabel>Số liệu tháng</GroupLabel>
+              <StatLines items={statsItems(e.totals as any)} className="text-slate-400" />
+            </div>
           </div>
         ))}
       </div>

@@ -3,6 +3,7 @@ import DashboardLayout from "@/components/layout";
 import { Kpi, Status } from "@/components/ui";
 import { ReportChart } from "@/components/charts";
 import GeneralReportPanel from "@/components/GeneralReportPanel";
+import SocialReportPanel from "@/components/SocialReportPanel";
 import { Suspense } from "react";
 import {
   Eye,
@@ -25,7 +26,14 @@ import { getContents, getOverviewStats, getTopContents, getUpcomingContents, get
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
-import { canAccess, isAdminLike } from "@/lib/permissions";
+import { canAccess, canExportGeneralReportWord, canSynthesizeGeneralReport, isAdminLike } from "@/lib/permissions";
+import {
+  latestChannelRows,
+  socialStatsByMonth,
+  socialStatsByWeek,
+  totalFollowers as socialFollowerTotal,
+  type SocialMetricRow,
+} from "@/lib/socialStats";
 
 function weekLabel(d: Date) {
   const start = new Date(d.getFullYear(), 0, 1);
@@ -69,7 +77,9 @@ export default async function Dashboard() {
   const canSocial = canAccess(user, "social");
   const canTrends = canAccess(user, "trends");
   const canTeam = canAccess(user, "team");
-  const canManageReports = isAdminLike(user) || canAccess(user, "users") || canAccess(user, "reports_work_create");
+  // Báo cáo chung tháng: 2 quyền TÁCH BIỆT cho nút "Tổng hợp bằng AI" và "Tải file Word"
+  const canSynthesizeGeneral = canSynthesizeGeneralReport(user);
+  const canExportGeneralWord = canExportGeneralReportWord(user);
 
   const contentScope = isAdminLike(user) ? undefined : Number(user?.id) || 0;
   const trendScope = isAdminLike(user) ? {} : { ownerId: Number(user?.id) || 0 };
@@ -92,10 +102,9 @@ export default async function Dashboard() {
   const adClicks = ads.reduce((s: number, a: any) => s + a.clicks, 0);
 
   // ---- MXH theo tuần (từ SocialMetric) ----
+  const socialRows = (social as unknown as SocialMetricRow[]) || [];
   const byWeek = new Map<string, { views: number; eng: number }>();
-  let totalFollowers = 0;
-  for (const m of social as any[]) {
-    totalFollowers += m.followers;
+  for (const m of socialRows) {
     const w = byWeek.get(m.weekLabel) || { views: 0, eng: 0 };
     w.views += m.views;
     w.eng += m.engagement;
@@ -106,6 +115,14 @@ export default async function Dashboard() {
   const lastW = weeksSorted[weeksSorted.length - 1]?.[1];
   const prevW = weeksSorted[weeksSorted.length - 2]?.[1];
   const viewsGrowth = lastW && prevW && prevW.views > 0 ? ((lastW.views - prevW.views) / prevW.views) * 100 : null;
+
+  // ---- Báo cáo MXH theo tuần / tháng (khối "Báo cáo mạng xã hội" trên Dashboard) ----
+  // Lượt follow = ảnh chụp MỚI NHẤT của mỗi kênh (không cộng dồn qua các tuần);
+  // video đã đăng / view / tương tác = cộng dồn theo kỳ; avgViews = view ÷ video.
+  const totalFollowers = socialFollowerTotal(socialRows);
+  const socialWeekly = socialStatsByWeek(socialRows, 8);
+  const socialMonthly = socialStatsByMonth(socialRows, 6);
+  const socialChannels = latestChannelRows(socialRows);
 
   // ---- Phễu leads ----
   const leadCountMap = new Map((leadGroups as any[]).map((g) => [g.status, g._count._all]));
@@ -214,6 +231,9 @@ export default async function Dashboard() {
           </div>
         )}
       </div>
+
+      {/* BÁO CÁO MẠNG XÃ HỘI — lượt follow, video đã đăng, view TB/video theo tuần / tháng */}
+      {canSocial && <SocialReportPanel weekly={socialWeekly} monthly={socialMonthly} channels={socialChannels} />}
 
       {/* Lưới chính */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -420,7 +440,7 @@ export default async function Dashboard() {
 
       {/* BÁO CÁO CHUNG THÁNG — AI tổng hợp báo cáo tuần của từng nhân viên */}
       <Suspense fallback={null}>
-        <GeneralReportPanel canManage={canManageReports} currentUserId={user ? Number(user.id) : undefined} />
+        <GeneralReportPanel canSynthesize={canSynthesizeGeneral} canExportWord={canExportGeneralWord} />
       </Suspense>
     </DashboardLayout>
   );

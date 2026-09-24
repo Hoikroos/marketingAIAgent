@@ -85,6 +85,8 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     { a: "upload", l: "Nộp file (tải lên)" },
     { a: "download", l: "Tải về" },
     { a: "delete", l: "Xoá file" },
+    { a: "synthesize", l: "Tổng hợp Báo cáo chung (AI) — tốn chi phí AI" },
+    { a: "export_general", l: "Tải Báo cáo chung (file Word)" },
   ]),
   withActions("dailyreports", "Nhật ký công việc", "NotebookPen", [
     { a: "write", l: "Tự nhập & sửa báo cáo của mình" },
@@ -103,11 +105,14 @@ const STAFF_MODULES = [
 ];
 
 /** Quyền mặc định khi admin tạo nhân viên mới: mọi thao tác của các module được cấp,
- *  RIÊNG các quyền nhạy cảm (sửa công việc, cập nhật số liệu quảng cáo, và các thao tác
- *  ghi/xoá/xuất Excel của Mạng xã hội) phải được Admin cấp trong phần Phân quyền. */
+ *  RIÊNG các quyền nhạy cảm (sửa công việc, cập nhật số liệu quảng cáo, các thao tác
+ *  ghi/xoá/xuất Excel của Mạng xã hội, tổng hợp AI + tải Báo cáo chung tháng) phải
+ *  được Admin cấp trong phần Phân quyền. */
 const DEFAULT_EXCLUDED: string[] = [
   "team_update", "team_delete", "ads_update",
   "social_create", "social_update", "social_delete", "social_export",
+  // Báo cáo chung tháng: tổng hợp AI (tốn chi phí) + tải file Word (dữ liệu toàn phòng)
+  "reports_work_synthesize", "reports_work_export_general",
 ];
 export const DEFAULT_PERMISSIONS: string[] = PERMISSION_GROUPS
   .filter((g) => STAFF_MODULES.includes(g.module))
@@ -141,4 +146,33 @@ export function canAccess(
   if (!user || !key) return false;
   if (isAdminLike(user)) return true;
   return getUserPermissions(user.permissions).includes(key);
+}
+
+// ---------------------------------------------------------------------------
+// QUYỀN RIÊNG CHO "BÁO CÁO CHUNG THÁNG" (Dashboard) — 2 quyền TÁCH BIỆT:
+//   - reports_work_synthesize     : chạy AI tổng hợp (tốn chi phí AI)
+//   - reports_work_export_general : tải file Word (dữ liệu của toàn phòng)
+// Dùng chung cho cả route API (app/api/work-reports/general/route.ts) và
+// server component (app/dashboard/page.tsx) → không lệch quyền giữa 2 nơi.
+// ---------------------------------------------------------------------------
+
+type PermUser = { role?: string; permissions?: string } | null | undefined;
+
+/** Được chạy AI tổng hợp Báo cáo chung tháng */
+export function canSynthesizeGeneralReport(user: PermUser): boolean {
+  return (
+    canAccess(user, "users") ||
+    canAccess(user, "reports_work_create") ||
+    canAccess(user, "reports_work_synthesize")
+  );
+}
+
+/** Được tải file Word Báo cáo chung tháng (người tổng hợp được hoặc được cấp quyền xuất) */
+export function canExportGeneralReportWord(user: PermUser): boolean {
+  return canSynthesizeGeneralReport(user) || canAccess(user, "reports_work_export_general");
+}
+
+/** Được xem bản tổng hợp của TẤT CẢ nhân viên (không chỉ phần của mình) */
+export function canViewGeneralReportAll(user: PermUser): boolean {
+  return canExportGeneralReportWord(user) || canAccess(user, "dailyreports_viewall");
 }
