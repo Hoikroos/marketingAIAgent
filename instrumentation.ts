@@ -3,8 +3,7 @@
  *
  * Server Next.js tự chạy các tác vụ trong lib/automation.ts mỗi 60 giây:
  *   1. Nhắc đăng bài (7h sáng + 30 phút trước giờ đăng)
- *   2. Follow-up lead cũ (sau followUpDays ngày)
- *   3. Báo cáo tuần (1 lần mỗi tuần thứ Hai)
+ *   2. Báo cáo tuần (1 lần mỗi tuần thứ Hai)
  *
  * An toàn vì bên trong runAllJobs() đã có chống trùng thông báo
  * (notifiedToday / notifiedSince) nên chạy dày cũng không spam.
@@ -31,7 +30,6 @@ export async function register() {
       const res = await runAllJobs();
       if (
         res.reminders ||
-        res.followups ||
         res.weekly ||
         res.taskDeadlines ||
         res.calendarEvents ||

@@ -6,11 +6,12 @@ import { notifyEnabled, broadcastUserId, notifiedToday, notifiedSince, notifiedE
  * nút "Chạy ngay" trong Settings hoặc cron ngoài):
  * 1. Nhắc đăng bài — 2 mốc: (a) 7h sáng các bài đăng trong ngày, (b) 30 phút trước giờ đăng
  *    → thông báo cho tác giả (mỗi mốc có chống trùng riêng) + đẩy Web Push ra thiết bị
- * 2. Follow-up lead cũ: lead chưa được liên hệ sau X ngày (Settings) → thông báo chung (không gán người phụ trách)
- * 3. Báo cáo tuần: tổng hợp 7 ngày (leads, nội dung, chi tiêu ads) → thông báo chung
- * 4. Task hết hạn hôm nay / quá hạn chưa hoàn thành → thông báo người được giao (1 lần/ngày)
- * 5. Sự kiện lịch diễn ra hôm nay → thông báo cho chủ sự kiện (1 lần/ngày)
- * 6. Nội dung viral (leads >= 5) → chúc mừng tác giả (1 lần duy nhất mỗi content)
+ * 2. Báo cáo tuần: tổng hợp 7 ngày (leads, nội dung, chi tiêu ads) → thông báo chung
+ * 3. Task hết hạn hôm nay / quá hạn chưa hoàn thành → thông báo người được giao (1 lần/ngày)
+ * 4. Sự kiện lịch diễn ra hôm nay → thông báo cho chủ sự kiện (1 lần/ngày)
+ * 5. Nội dung viral (leads >= 5) → chúc mừng tác giả (1 lần duy nhất mỗi content)
+ * KHÔNG có thông báo về lead: job "Follow-up lead cũ" + loại thông báo `followup`
+ * và setting `followUpDays` đã bị bỏ hoàn toàn.
  * Mỗi tác vụ có cơ chế chống trùng: chỉ tạo 1 thông báo cùng loại/ngày.
  */
 
@@ -30,7 +31,6 @@ export async function getBroadcastUserId(): Promise<number> {
 
 export type AutomationResults = {
   reminders: number;
-  followups: number;
   weekly: boolean;
   taskDeadlines: number;
   calendarEvents: number;
@@ -38,7 +38,7 @@ export type AutomationResults = {
 };
 
 export async function runAllJobs(): Promise<AutomationResults> {
-  const res: AutomationResults = { reminders: 0, followups: 0, weekly: false, taskDeadlines: 0, calendarEvents: 0, viral: 0 };
+  const res: AutomationResults = { reminders: 0, weekly: false, taskDeadlines: 0, calendarEvents: 0, viral: 0 };
   const broadcastId = await getBroadcastUserId();
   const now = new Date();
 
@@ -98,32 +98,7 @@ export async function runAllJobs(): Promise<AutomationResults> {
     }
   }
 
-  // ---- Job 2: Follow-up lead chưa liên hệ sau X ngày ----
-  const days = Math.max(1, parseInt(await getSettingValue("followUpDays", "3")) || 3);
-  const cutoff = new Date(now.getTime() - days * 86400000);
-  const oldLeads = await prisma.lead.findMany({
-    where: {
-      contacted: "Chưa liên hệ",
-      status: { notIn: ["Đã chốt", "Không tiềm năng"] },
-      createdAt: { lt: cutoff },
-    },
-  });
-  for (const l of oldLeads) {
-    if (await notifiedToday("followup", l.id)) continue;
-    await prisma.notification.create({
-      data: {
-        userId: broadcastId,
-        type: "followup",
-        title: "📞 Follow-up lead cũ",
-        content: `${l.name} (${l.phone || "—"}) đã ${days} ngày chưa được liên hệ — gọi lại ngay!`,
-        refId: l.id,
-        link: "/dashboard/leads",
-      },
-    });
-    res.followups++;
-  }
-
-  // ---- Job 3: Báo cáo tuần (1 lần/tuần) ----
+  // ---- Job 2: Báo cáo tuần (1 lần/tuần) ----
   if ((await getSettingValue("weeklyReport", "true")) !== "false") {
     const monday = new Date(now);
     const dow = (monday.getDay() + 6) % 7;
@@ -151,7 +126,7 @@ export async function runAllJobs(): Promise<AutomationResults> {
     }
   }
 
-  // ---- Job 4: Task hết hạn hôm nay / đã quá hạn mà chưa hoàn thành ----
+  // ---- Job 3: Task hết hạn hôm nay / đã quá hạn mà chưa hoàn thành ----
   {
     const endToday = new Date(now);
     endToday.setHours(23, 59, 59, 999);
@@ -190,7 +165,7 @@ export async function runAllJobs(): Promise<AutomationResults> {
     }
   }
 
-  // ---- Job 5: Sự kiện lịch diễn ra hôm nay → nhắc chủ sự kiện ----
+  // ---- Job 4: Sự kiện lịch diễn ra hôm nay → nhắc chủ sự kiện ----
   {
     const startToday = new Date(now);
     startToday.setHours(0, 0, 0, 0);
@@ -213,7 +188,7 @@ export async function runAllJobs(): Promise<AutomationResults> {
     }
   }
 
-  // ---- Job 6: Nội dung viral (leads >= 5) → chúc mừng tác giả + thông báo chung ----
+  // ---- Job 5: Nội dung viral (leads >= 5) → chúc mừng tác giả + thông báo chung ----
   if ((await notifyEnabled("notifyViral"))) {
     const viralContents = await prisma.content.findMany({
       where: { leads: { gte: 5 } },

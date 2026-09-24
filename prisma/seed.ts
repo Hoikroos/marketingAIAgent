@@ -35,7 +35,6 @@ const SETTINGS: Record<string, string> = {
   notifyTrend: "true",
   notifyContent: "true",
   notifyViral: "true",
-  followUpDays: "3",
 };
 
 async function main() {

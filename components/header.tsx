@@ -242,8 +242,6 @@ export default function Header({
   }): string | null {
     if (n.type === "task" || n.type === "task_deadline")
       return n.refId ? `/dashboard/team?task=${n.refId}` : "/dashboard/team";
-    if (n.type === "lead")
-      return n.refId ? `/dashboard/leads?focus=${n.refId}` : "/dashboard/leads";
     if (n.type === "report")
       return n.refId
         ? `/dashboard/work-reports?focus=${n.refId}`

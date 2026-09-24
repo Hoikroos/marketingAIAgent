@@ -26,7 +26,7 @@ const securityHeaders = [
 const nextConfig = {
   reactStrictMode: true,
   // Bật instrumentation.ts: scheduler nội bộ chạy tác vụ tự động ngay trong server
-  // (nhắc đăng bài, follow-up lead, báo cáo tuần) — không cần cron ngoài + Cron Secret
+  // (nhắc đăng bài, báo cáo tuần) — không cần cron ngoài + Cron Secret
   experimental: {
     instrumentationHook: true,
     // web-push dùng module Node (http/https) — giữ nguyên outside bundle

@@ -10,7 +10,7 @@ export async function POST() {
   try {
     const results = await runAllJobs();
     try {
-      await logActivity("automation", "create", `Chạy tác vụ: ${results.reminders} nhắc đăng bài, ${results.followups} follow-up${results.weekly ? ", tạo báo cáo tuần" : ""}`);
+      await logActivity("automation", "create", `Chạy tác vụ: ${results.reminders} nhắc đăng bài${results.weekly ? ", tạo báo cáo tuần" : ""}`);
     } catch {}
     return NextResponse.json({ ok: true, results });
   } catch (err: any) {

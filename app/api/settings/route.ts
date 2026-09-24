@@ -46,7 +46,6 @@ export async function GET() {
         notifyViral: getSetting("notifyViral", "true") === "true",
         metaPixelId: getSetting("metaPixelId", ""),
         ga4Id: getSetting("ga4Id", ""),
-        followUpDays: getSetting("followUpDays", "3"),
         autoReminders: getSetting("autoReminders", "true") === "true",
         weeklyReport: getSetting("weeklyReport", "true") === "true",
         cronSecret: getSetting("cronSecret", ""),
@@ -68,7 +67,7 @@ export async function PUT(req: NextRequest) {
           "aiProvider", "aiModel", "aiEndpoint", "aiApiKey", "geminiApiKey", "openaiApiKey",
           "dbName", "dbServer",
           "notifyTask", "notifyReport", "notifyTrend", "notifyContent", "notifyViral",
-          "metaPixelId", "ga4Id", "followUpDays", "autoReminders", "weeklyReport", "cronSecret"
+          "metaPixelId", "ga4Id", "autoReminders", "weeklyReport", "cronSecret"
         ];
         
         for (const key of settingKeys) {

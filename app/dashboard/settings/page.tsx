@@ -156,7 +156,6 @@ type SettingsData = {
   notifyContent: boolean;
   metaPixelId: string;
   ga4Id: string;
-  followUpDays: string;
   autoReminders: boolean;
   weeklyReport: boolean;
   cronSecret: string;
@@ -527,7 +526,7 @@ export default function SettingsPage() {
     }
   }
 
-  /** Chạy ngay các tác vụ tự động (nhắc đăng bài, follow-up, báo cáo tuần) */
+  /** Chạy ngay các tác vụ tự động (nhắc đăng bài, báo cáo tuần) */
   async function runAutomationNow() {
     setJobsRunning(true);
     try {
@@ -537,7 +536,7 @@ export default function SettingsPage() {
       const r = d.results || {};
       toast.success(
         "Đã chạy tác vụ tự động",
-        `Nhắc đăng bài: ${r.reminders ?? 0} · Follow-up lead: ${r.followups ?? 0} · Báo cáo tuần: ${r.weekly ? "đã tạo" : "đã tồn tại/bỏ qua"}`,
+        `Nhắc đăng bài: ${r.reminders ?? 0} · Báo cáo tuần: ${r.weekly ? "đã tạo" : "đã tồn tại/bỏ qua"}`,
       );
     } catch (e: any) {
       toast.error("Chạy tác vụ thất bại", e.message || String(e));
@@ -716,7 +715,7 @@ export default function SettingsPage() {
             {/* Tự động hoá */}
             <SettingCard
               title="Tự động hoá"
-              desc="Nhắc đăng bài, follow-up lead cũ, báo cáo tuần"
+              desc="Nhắc đăng bài, báo cáo tuần"
               icon={Bell}
               iconTone="text-amber-500 bg-amber-500/10"
               glow="bg-amber-400"
@@ -757,25 +756,6 @@ export default function SettingsPage() {
                     onChange={(v) => set("weeklyReport", v)}
                     label=""
                   />
-                </div>
-
-                <div>
-                  <label className="field-label">
-                    Follow-up lead sau (ngày)
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="number"
-                      min={1}
-                      className="input"
-                      style={{ paddingRight: "3rem" }}
-                      value={data?.followUpDays || "3"}
-                      onChange={(e) => set("followUpDays", e.target.value)}
-                    />
-                    <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs text-slate-400">
-                      ngày
-                    </span>
-                  </div>
                 </div>
 
                 <div>
