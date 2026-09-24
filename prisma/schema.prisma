@@ -35,7 +35,6 @@ model User {
   active        Boolean        @default(true)
   createdAt     DateTime       @default(now())
   contents      Content[]
-  leads         Lead[]
   tasks         Task[]
   notifications Notification[]
   workReports   Report[]      @relation("ReportEmployee")
@@ -74,8 +73,6 @@ model Lead {
   address        String?
   contacted      String   @default("Chưa liên hệ")
   responseStatus String   @default("Đang chờ khách phản hồi")
-  ownerId        Int?
-  owner          User?    @relation(fields: [ownerId], references: [id])
   utmSource      String?
   utmMedium      String?
   utmCampaign    String?

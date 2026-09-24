@@ -6,7 +6,7 @@ import { notifyEnabled, broadcastUserId, notifiedToday, notifiedSince, notifiedE
  * nút "Chạy ngay" trong Settings hoặc cron ngoài):
  * 1. Nhắc đăng bài — 2 mốc: (a) 7h sáng các bài đăng trong ngày, (b) 30 phút trước giờ đăng
  *    → thông báo cho tác giả (mỗi mốc có chống trùng riêng) + đẩy Web Push ra thiết bị
- * 2. Follow-up lead cũ: lead chưa được liên hệ sau X ngày (Settings) → thông báo cho người phụ trách
+ * 2. Follow-up lead cũ: lead chưa được liên hệ sau X ngày (Settings) → thông báo chung (không gán người phụ trách)
  * 3. Báo cáo tuần: tổng hợp 7 ngày (leads, nội dung, chi tiêu ads) → thông báo chung
  * 4. Task hết hạn hôm nay / quá hạn chưa hoàn thành → thông báo người được giao (1 lần/ngày)
  * 5. Sự kiện lịch diễn ra hôm nay → thông báo cho chủ sự kiện (1 lần/ngày)
@@ -112,7 +112,7 @@ export async function runAllJobs(): Promise<AutomationResults> {
     if (await notifiedToday("followup", l.id)) continue;
     await prisma.notification.create({
       data: {
-        userId: l.ownerId ?? broadcastId,
+        userId: broadcastId,
         type: "followup",
         title: "📞 Follow-up lead cũ",
         content: `${l.name} (${l.phone || "—"}) đã ${days} ngày chưa được liên hệ — gọi lại ngay!`,

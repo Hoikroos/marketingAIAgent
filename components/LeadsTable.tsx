@@ -23,7 +23,6 @@ type Lead = {
   utmCampaign?: string | null;
   utmContent?: string | null;
   createdAt: string | Date;
-  owner?: { id: number; name: string } | null;
 };
 
 const STATUSES = ["Mới", "Đang tư vấn", "Đã chốt", "Không tiềm năng"];
@@ -48,7 +47,7 @@ function monthLabel(key: string) {
   return `Tháng ${m}/${y}`;
 }
 
-export default function LeadsTable({ leads, users = [] }: { leads: Lead[]; users?: { id: number; name: string }[] }) {
+export default function LeadsTable({ leads }: { leads: Lead[] }) {
   const [q, setQ] = useState("");
   const [fStatus, setFStatus] = useState("");
   const [fSource, setFSource] = useState("");
@@ -161,25 +160,6 @@ export default function LeadsTable({ leads, users = [] }: { leads: Lead[]; users
     }
   }
 
-  async function assignLead(id: number, ownerId: string) {
-    setUpdatingId(id);
-    try {
-      const res = await fetch("/api/leads", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, ownerId: ownerId ? Number(ownerId) : null }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.ok) throw new Error(data.error || "Phân công thất bại");
-      toast.success("Đã phân công", ownerId ? "Đã gửi thông báo cho nhân viên." : "Đã bỏ phân công.");
-      router.refresh();
-    } catch (err: any) {
-      toast.error("Không thể phân công", err.message || String(err));
-    } finally {
-      setUpdatingId(null);
-    }
-  }
-
   async function changeItem(id: number, patch: Record<string, unknown>) {
     setUpdatingId(id);
     try {
@@ -250,7 +230,6 @@ export default function LeadsTable({ leads, users = [] }: { leads: Lead[]; users
               <th>SĐT</th>
               <th>Nguồn</th>
               <th>Nội dung</th>
-              <th>Phụ trách</th>
               <th>Địa chỉ</th>
               <th>Đã liên hệ</th>
               <th>Trạng thái hồi đáp</th>
@@ -266,21 +245,6 @@ export default function LeadsTable({ leads, users = [] }: { leads: Lead[]; users
                 <td>{l.phone}</td>
                 <td>{l.source}{l.utmCampaign ? <span className="ml-1 text-[9px] px-1 py-0.5 rounded bg-violet-500/15 text-violet-300 whitespace-nowrap" title={`UTM: ${l.utmSource || "?"} / ${l.utmMedium || "?"} / ${l.utmCampaign}`}>UTM: {l.utmCampaign}</span> : null}</td>
                 <td>{l.purpose || "—"}</td>
-                <td className="py-2">
-                  <select
-                    value={l.owner?.id ? String(l.owner.id) : ""}
-                    disabled={updatingId === l.id || !canUpdate}
-                    onChange={(e) => assignLead(l.id, e.target.value)}
-                    className="bg-transparent border border-[var(--border)] rounded px-1.5 py-1 text-[11px] outline-none cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    <option value="">— Chưa gán —</option>
-                    {users.map((u) => (
-                      <option key={u.id} value={u.id} className="bg-[var(--panel)] text-[var(--text)]">
-                        {u.name}
-                      </option>
-                    ))}
-                  </select>
-                </td>
                 <td className="text-slate-500">{l.address || "—"}</td>
                 <td className="py-2">
                   <select
@@ -345,7 +309,7 @@ export default function LeadsTable({ leads, users = [] }: { leads: Lead[]; users
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={11} className="p-8 text-center text-slate-500">
+                <td colSpan={10} className="p-8 text-center text-slate-500">
                   Không tìm thấy lead nào phù hợp.
                 </td>
               </tr>

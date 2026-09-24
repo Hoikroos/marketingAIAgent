@@ -39,7 +39,6 @@ export async function GET() {
 
         dbName: getSetting("dbName", ""),
         dbServer: getSetting("dbServer", ""),
-        notifyLead: getSetting("notifyLead", "true") === "true",
         notifyTask: getSetting("notifyTask", "true") === "true",
         notifyReport: getSetting("notifyReport", "true") === "true",
         notifyTrend: getSetting("notifyTrend", "true") === "true",
@@ -68,7 +67,7 @@ export async function PUT(req: NextRequest) {
           "companyName", "companyPhone", "companyEmail", "brandColor", "slogan",
           "aiProvider", "aiModel", "aiEndpoint", "aiApiKey", "geminiApiKey", "openaiApiKey",
           "dbName", "dbServer",
-          "notifyLead", "notifyTask", "notifyReport", "notifyTrend", "notifyContent", "notifyViral",
+          "notifyTask", "notifyReport", "notifyTrend", "notifyContent", "notifyViral",
           "metaPixelId", "ga4Id", "followUpDays", "autoReminders", "weeklyReport", "cronSecret"
         ];
         

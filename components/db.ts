@@ -23,7 +23,7 @@ export async function getCalendarEvents(limit = 300, userId?: number) {
 }
 
 export async function getLeads(limit = 20) {
-    return prisma.lead.findMany({ orderBy: { createdAt: "desc" }, take: limit, include: { owner: true } });
+    return prisma.lead.findMany({ orderBy: { createdAt: "desc" }, take: limit });
 }
 
 export async function getStaffUsers() {

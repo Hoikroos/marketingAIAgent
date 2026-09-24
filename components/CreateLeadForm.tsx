@@ -5,13 +5,7 @@ import { useToast } from "./toast";
 import { Field, Spinner } from "./ui";
 import { UserPlus, X } from "./icons";
 
-export default function CreateLeadForm({
-  onSuccess,
-  users = [],
-}: {
-  onSuccess?: () => void;
-  users?: { id: number; name: string }[];
-}) {
+export default function CreateLeadForm({ onSuccess }: { onSuccess?: () => void }) {
   const router = useRouter();
   const pathname = usePathname();
   const toast = useToast();
@@ -22,7 +16,6 @@ export default function CreateLeadForm({
   const [address, setAddress] = useState("");
   const [contacted, setContacted] = useState("Chưa liên hệ");
   const [responseStatus, setResponseStatus] = useState("Đang chờ khách phản hồi");
-  const [ownerId, setOwnerId] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -34,7 +27,7 @@ export default function CreateLeadForm({
       const res = await fetch("/api/leads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, phone, source, purpose, address, contacted, responseStatus, ownerId }),
+        body: JSON.stringify({ name, phone, source, purpose, address, contacted, responseStatus }),
       });
       const data = await res.json();
       if (!res.ok || !data.ok) throw new Error(data.error || "Không thể tạo lead");
@@ -115,19 +108,6 @@ export default function CreateLeadForm({
             </select>
           </Field>
         </div>
-      </div>
-
-      {/* ── Phân công ───────────────────────── */}
-      <div className="space-y-3">
-        <SectionTitle>Phân công</SectionTitle>
-        <Field label="Phân cho nhân viên">
-          <select value={ownerId} onChange={(e) => setOwnerId(e.target.value)} className="input !py-2.5">
-            <option value="">— Chưa phân —</option>
-            {users.map((u) => (
-              <option key={u.id} value={u.id}>{u.name}</option>
-            ))}
-          </select>
-        </Field>
       </div>
 
       {error && (

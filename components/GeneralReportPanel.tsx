@@ -12,8 +12,6 @@ type EmpWeekPublic = {
   contents: number;
   contentViews: number;
   contentLeads: number;
-  leads: number;
-  leadsWon: number;
   tasksDone: number;
   socialViews: number;
   socialVideos: number;
@@ -25,7 +23,7 @@ type EmpPublic = {
   jobTitle: string;
   totals: {
     files: number; daily: number; contents: number; contentViews: number; contentLeads: number;
-    leads: number; leadsWon: number; tasksDone: number; socialViews: number; socialVideos: number;
+    tasksDone: number; socialViews: number; socialVideos: number;
   };
   overall: string;
   weeks: Record<string, EmpWeekPublic>;

@@ -49,7 +49,6 @@ export async function GET(req: NextRequest) {
   const leads = await prisma.lead.findMany({
     where: range ? { createdAt: { gte: range.start, lt: range.end } } : undefined,
     orderBy: { createdAt: "desc" },
-    include: { owner: true },
   });
 
   const now = new Date();
@@ -74,7 +73,7 @@ export async function GET(req: NextRequest) {
   <Style ss:ID="sQuanTam"><Font ss:Bold="1" ss:Color="#1E40AF"/><Interior ss:Color="#DBEAFE" ss:Pattern="Solid"/><Alignment ss:Horizontal="Center"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#BFDBFE"/></Borders></Style>
 </Styles>`;
 
-  const headerCells = ["STT", "Họ tên", "SĐT", "Nguồn", "Người phụ trách", "Nội dung", "Đã liên hệ", "Trạng thái hồi đáp", "Trạng thái", "Ngày tạo"]
+  const headerCells = ["STT", "Họ tên", "SĐT", "Nguồn", "Nội dung", "Đã liên hệ", "Trạng thái hồi đáp", "Trạng thái", "Ngày tạo"]
     .map((h) => `<Cell ss:StyleID="sHeader"><Data ss:Type="String">${esc(h)}</Data></Cell>`)
     .join("");
 
@@ -88,7 +87,6 @@ export async function GET(req: NextRequest) {
         `<Cell ss:StyleID="${rowStyle}"><Data ss:Type="String">${esc(l.name)}</Data></Cell>`,
         `<Cell ss:StyleID="${rowStyle}"><Data ss:Type="String">${esc(l.phone)}</Data></Cell>`,
         `<Cell ss:StyleID="${rowStyle}"><Data ss:Type="String">${esc(l.source)}</Data></Cell>`,
-        `<Cell ss:StyleID="${rowStyle}"><Data ss:Type="String">${esc(l.owner?.name || "")}</Data></Cell>`,
         `<Cell ss:StyleID="${rowStyle}"><Data ss:Type="String">${esc(l.purpose || "")}</Data></Cell>`,
         `<Cell ss:StyleID="${rowStyle}"><Data ss:Type="String">${esc(l.contacted || "")}</Data></Cell>`,
         `<Cell ss:StyleID="${rowStyle}"><Data ss:Type="String">${esc(l.responseStatus || "")}</Data></Cell>`,
@@ -101,7 +99,7 @@ export async function GET(req: NextRequest) {
 
   const emptyRow =
     leads.length === 0
-      ? `<Row><Cell ss:StyleID="sEven" ss:MergeAcross="9"><Data ss:Type="String">Chưa có khách hàng tiềm năng nào.</Data></Cell></Row>`
+      ? `<Row><Cell ss:StyleID="sEven" ss:MergeAcross="8"><Data ss:Type="String">Chưa có khách hàng tiềm năng nào.</Data></Cell></Row>`
       : "";
 
   const titleText = range ? `DANH SÁCH KHÁCH HÀNG TIỀM NĂNG — ${range.label.toUpperCase()}` : "DANH SÁCH KHÁCH HÀNG TIỀM NĂNG";
@@ -123,14 +121,13 @@ ${styles}
   <Column ss:Width="240"/>
   <Column ss:Width="120"/>
   <Column ss:Width="90"/>
-  <Column ss:Width="180"/>
   <Column ss:Width="140"/>
   <Column ss:Width="130"/>
   <Column ss:Width="150"/>
   <Column ss:Width="140"/>
   <Column ss:Width="105"/>
-  <Row ss:Height="30"><Cell ss:MergeAcross="9" ss:StyleID="sTitle"><Data ss:Type="String">${esc(titleText)}</Data></Cell></Row>
-  <Row><Cell ss:MergeAcross="9" ss:StyleID="sSub"><Data ss:Type="String">${esc(subText)}</Data></Cell></Row>
+  <Row ss:Height="30"><Cell ss:MergeAcross="8" ss:StyleID="sTitle"><Data ss:Type="String">${esc(titleText)}</Data></Cell></Row>
+  <Row><Cell ss:MergeAcross="8" ss:StyleID="sSub"><Data ss:Type="String">${esc(subText)}</Data></Cell></Row>
   <Row>${headerCells}</Row>
   ${body}
   ${emptyRow}

@@ -28,15 +28,13 @@ export type EmpWeek = {
   contents: number;
   contentViews: number;
   contentLeads: number;
-  leads: number;
-  leadsWon: number;
   tasksDone: number;
   socialViews: number;
   socialVideos: number;
 };
 export type EmpTotals = {
   files: number; daily: number; contents: number; contentViews: number; contentLeads: number;
-  leads: number; leadsWon: number; tasksDone: number; socialViews: number; socialVideos: number;
+  tasksDone: number; socialViews: number; socialVideos: number;
 };
 export type EmpMonth = {
   userId: number;
@@ -70,16 +68,16 @@ export type GeneralCache = {
 };
 
 function emptyWeek(): EmpWeek {
-  return { dailyCount: 0, dailyText: "", files: [], contents: 0, contentViews: 0, contentLeads: 0, leads: 0, leadsWon: 0, tasksDone: 0, socialViews: 0, socialVideos: 0 };
+  return { dailyCount: 0, dailyText: "", files: [], contents: 0, contentViews: 0, contentLeads: 0, tasksDone: 0, socialViews: 0, socialVideos: 0 };
 }
 function emptyTotals(): EmpTotals {
-  return { files: 0, daily: 0, contents: 0, contentViews: 0, contentLeads: 0, leads: 0, leadsWon: 0, tasksDone: 0, socialViews: 0, socialVideos: 0 };
+  return { files: 0, daily: 0, contents: 0, contentViews: 0, contentLeads: 0, tasksDone: 0, socialViews: 0, socialVideos: 0 };
 }
 function emptyTeam(): TeamWeek {
   return { files: 0, daily: 0, contents: 0, contentViews: 0, contentLeads: 0, leads: 0, leadsWon: 0, tasksDone: 0, socialViews: 0, socialVideos: 0 };
 }
 function hasActivity(x: EmpWeek) {
-  return !!(x.contents || x.leads || x.tasksDone || x.socialViews || x.socialVideos);
+  return !!(x.contents || x.tasksDone || x.socialViews || x.socialVideos);
 }
 function clip(s: string, n: number) {
   return s.length > n ? s.slice(0, n) + "…" : s;
@@ -129,7 +127,7 @@ export async function collectMonthData(year: number, month: number): Promise<Mon
       where: { createdAt: { gte: start, lt: end } },
       select: { authorId: true, views: true, leads: true, createdAt: true, author: { select: { id: true, name: true } } },
     }),
-    prisma.lead.findMany({ where: { createdAt: { gte: start, lt: end } }, select: { ownerId: true, status: true, createdAt: true } }),
+    prisma.lead.findMany({ where: { createdAt: { gte: start, lt: end } }, select: { status: true, createdAt: true } }),
     prisma.task.findMany({ where: { status: "Đã hoàn thành", createdAt: { gte: start, lt: end } }, select: { assignee: true, createdAt: true } }),
     prisma.socialMetric.findMany({ where: { weekLabel: { in: weekOrder } }, select: { ownerId: true, views: true, videosPosted: true, weekLabel: true } }),
   ]);
@@ -191,14 +189,8 @@ export async function collectMonthData(year: number, month: number): Promise<Mon
   }
 
   // ---- Khách hàng tiềm năng ----
-  for (const l of leads) {
-    if (!l.ownerId) continue;
-    const wk = periodKey(new Date(l.createdAt), "week");
-    const w = employees.get(l.ownerId)?.weeks[wk];
-    if (!w) continue;
-    w.leads++;
-    if (l.status === "Đã chốt") w.leadsWon++;
-  }
+  // Lead KHÔNG còn gán người phụ trách → chỉ tổng hợp theo NHÓM (xem phần "Tổng hợp" bên dưới),
+  // không tách được theo từng nhân viên.
 
   // ---- Công việc hoàn thành (assignee là chuỗi tên, cách nhau " · ") ----
   const nameToId = new Map(users.map((u) => [u.name, u.id]));
@@ -230,8 +222,6 @@ export async function collectMonthData(year: number, month: number): Promise<Mon
       e.totals.contents += x.contents;
       e.totals.contentViews += x.contentViews;
       e.totals.contentLeads += x.contentLeads;
-      e.totals.leads += x.leads;
-      e.totals.leadsWon += x.leadsWon;
       e.totals.tasksDone += x.tasksDone;
       e.totals.socialViews += x.socialViews;
       e.totals.socialVideos += x.socialVideos;
@@ -247,13 +237,19 @@ export async function collectMonthData(year: number, month: number): Promise<Mon
       t.contents += x.contents;
       t.contentViews += x.contentViews;
       t.contentLeads += x.contentLeads;
-      t.leads += x.leads;
-      t.leadsWon += x.leadsWon;
       t.tasksDone += x.tasksDone;
       t.socialViews += x.socialViews;
       t.socialVideos += x.socialVideos;
     }
     teamWeeks[key] = t;
+  }
+
+  // Khách hàng tiềm năng của cả nhóm theo tuần (lead không gán cho nhân viên nào)
+  for (const l of leads) {
+    const t = teamWeeks[periodKey(new Date(l.createdAt), "week")];
+    if (!t) continue;
+    t.leads++;
+    if (l.status === "Đã chốt") t.leadsWon++;
   }
   const teamTotals = { ...emptyTeam(), reportsTotal: reports.length, reportsSubmitted: reports.filter((r) => r.status === "Đã nộp").length };
   teamTotals.leads = leads.length;
@@ -291,7 +287,7 @@ function empPrompt(emp: EmpMonth, data: MonthData): string {
     }
     if (x.dailyCount > 0) lines.push(`- Nhật ký công việc (${x.dailyCount} ngày): ${x.dailyText || "(trống nội dung)"}`);
     for (const f of x.files) lines.push(`- Báo cáo nộp "${f.title}"${f.text ? `: ${f.text}` : " (không đọc được nội dung file)"}`);
-    lines.push(`- Số liệu: ${x.contents} nội dung mới (${x.contentViews} views, ${x.contentLeads} lead về); ${x.leads} khách mới (${x.leadsWon} đã chốt); ${x.tasksDone} công việc hoàn thành; MXH ${x.socialViews} views / ${x.socialVideos} video đăng`);
+    lines.push(`- Số liệu: ${x.contents} nội dung mới (${x.contentViews} views, ${x.contentLeads} lead về); ${x.tasksDone} công việc hoàn thành; MXH ${x.socialViews} views / ${x.socialVideos} video đăng`);
   }
   lines.push("", `Yêu cầu — trả về ĐÚNG định dạng sau (không dùng markdown, không thêm mục khác):
 MỖI Ý VIẾT TRÊN MỘT DÒNG RIÊNG, mỗi dòng bắt đầu bằng "- " (KHÔNG dồn nhiều ý vào 1 dòng dài) để báo cáo dễ đọc.
@@ -324,7 +320,6 @@ function weekLineItems(x: EmpWeek): string[] {
   if (x.files.length) parts.push(`nộp ${x.files.length} báo cáo`);
   if (x.dailyCount) parts.push(`${x.dailyCount} nhật ký ngày`);
   if (x.contents) parts.push(`${x.contents} nội dung mới (${x.contentViews} views, ${x.contentLeads} lead)`);
-  if (x.leads) parts.push(`${x.leads} khách mới (${x.leadsWon} đã chốt)`);
   if (x.tasksDone) parts.push(`${x.tasksDone} công việc hoàn thành`);
   if (x.socialViews || x.socialVideos) parts.push(`MXH ${x.socialViews} views / ${x.socialVideos} video`);
   return parts;
@@ -357,7 +352,6 @@ function fallbackWeekSummary(emp: EmpMonth, key: string, data: MonthData): strin
   if (x.files.length) parts.push(`nộp ${x.files.length} báo cáo (${x.files.map((f) => f.title).join(", ")})`);
   if (x.dailyCount) parts.push(`viết ${x.dailyCount} nhật ký công việc`);
   if (x.contents) parts.push(`tạo ${x.contents} nội dung mới (${x.contentViews} views, ${x.contentLeads} lead về)`);
-  if (x.leads) parts.push(`tiếp nhận ${x.leads} khách mới (${x.leadsWon} đã chốt)`);
   if (x.tasksDone) parts.push(`hoàn thành ${x.tasksDone} công việc`);
   if (x.socialViews || x.socialVideos) parts.push(`MXH ${x.socialViews} views / ${x.socialVideos} video`);
   return parts.length ? `${emp.name}: ${parts.join("; ")}.` : `${emp.name}: ${w?.label ?? ""} chưa ghi nhận hoạt động nào trong hệ thống.`;
@@ -369,7 +363,6 @@ function fallbackOverall(emp: EmpMonth, data: MonthData): string {
   if (t.files) parts.push(`nộp ${t.files} báo cáo công việc`);
   if (t.daily) parts.push(`${t.daily} nhật ký ngày`);
   if (t.contents) parts.push(`tạo ${t.contents} nội dung (${t.contentViews} views, ${t.contentLeads} lead)`);
-  if (t.leads) parts.push(`${t.leads} khách hàng mới (${t.leadsWon} đã chốt)`);
   if (t.tasksDone) parts.push(`hoàn thành ${t.tasksDone} công việc`);
   if (t.socialViews || t.socialVideos) parts.push(`MXH ${t.socialViews} views / ${t.socialVideos} video`);
   return parts.length
@@ -567,8 +560,6 @@ export function toPublicJson(data: MonthData, cache: GeneralCache | null, opts: 
                 contents: x.contents,
                 contentViews: x.contentViews,
                 contentLeads: x.contentLeads,
-                leads: x.leads,
-                leadsWon: x.leadsWon,
                 tasksDone: x.tasksDone,
                 socialViews: x.socialViews,
                 socialVideos: x.socialVideos,

@@ -6,7 +6,7 @@ import ExportLeadsButton from "@/components/ExportLeadsButton";
 import LeadsTimeStats from "@/components/LeadsTimeStats";
 import { Suspense } from "react";
 import { Users, UserPlus, Phone, MessageCircle, Facebook } from "@/components/icons";
-import { getLeads, getStaffUsers } from "@/components/db";
+import { getLeads } from "@/components/db";
 import { prisma } from "@/lib/prisma";
 import { periodKey, periodLabel, type Gran } from "@/lib/workStats";
 
@@ -47,9 +47,8 @@ const LEAD_STATUSES = ["Mới", "Đang tư vấn", "Đã chốt", "Không tiềm
 
 export default async function Leads() {
   await requirePerm("leads");
-  const [leads, users, leadTimeRows] = await Promise.all([
+  const [leads, leadTimeRows] = await Promise.all([
     getLeads(200),
-    getStaffUsers(),
     // Lấy TOÀN BỘ lead (chỉ 2 cột) để thống kê theo tuần/tháng chính xác, không bị giới hạn
     prisma.lead.findMany({ select: { status: true, createdAt: true } }),
   ]);
@@ -142,11 +141,11 @@ export default async function Leads() {
       <LeadsTimeStats weekly={weekly} monthly={monthly} />
 
       <div className="flex gap-3 mb-4">
-        <CreateLeadModal users={users.map((u) => ({ id: u.id, name: u.name }))} />
+        <CreateLeadModal />
         <ExportLeadsButton months={months} />
       </div>
       <Suspense fallback={null}>
-        <LeadsTable leads={leads as any} users={users.map((u) => ({ id: u.id, name: u.name }))} />
+        <LeadsTable leads={leads as any} />
       </Suspense>
     </PageShell>
   );

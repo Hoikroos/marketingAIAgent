@@ -151,7 +151,6 @@ type SettingsData = {
   geminiApiKey: string;
   openaiApiKey: string;
   aiKeys?: Record<string, string>;
-  notifyLead: boolean;
   notifyTask: boolean;
   notifyReport: boolean;
   notifyContent: boolean;
@@ -1049,26 +1048,19 @@ export default function SettingsPage() {
                 <div className="grid sm:grid-cols-2">
                   <div className="px-4 py-3.5 border-b border-[var(--border-soft)] sm:border-r">
                     <Toggle
-                      label="Có lead được phân cho nhân viên"
-                      checked={data?.notifyLead || false}
-                      onChange={(v) => set("notifyLead", v)}
-                    />
-                  </div>
-                  <div className="px-4 py-3.5 border-b border-[var(--border-soft)]">
-                    <Toggle
                       label="Có báo cáo công việc mới"
                       checked={data?.notifyReport || false}
                       onChange={(v) => set("notifyReport", v)}
                     />
                   </div>
-                  <div className="px-4 py-3.5 sm:border-r border-[var(--border-soft)]">
+                  <div className="px-4 py-3.5 border-b border-[var(--border-soft)]">
                     <Toggle
                       label="Có task được giao"
                       checked={data?.notifyTask || false}
                       onChange={(v) => set("notifyTask", v)}
                     />
                   </div>
-                  <div className="px-4 py-3.5">
+                  <div className="px-4 py-3.5 sm:border-r border-[var(--border-soft)]">
                     <Toggle
                       label="Có nội dung mới được tạo"
                       checked={data?.notifyContent || false}

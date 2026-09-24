@@ -30,7 +30,6 @@ const SETTINGS: Record<string, string> = {
   companyName: "Tân Phú Land",
   brandColor: "#1b98e0",
   slogan: "Marketing Bất Động Sản thông minh với AI",
-  notifyLead: "true",
   notifyTask: "true",
   notifyReport: "true",
   notifyTrend: "true",
